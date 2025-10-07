@@ -58,6 +58,7 @@ export default function StockPage() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [currency, setCurrency] = useState<string>("USD");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | "">("");
@@ -83,17 +84,30 @@ export default function StockPage() {
   const [soldDate, setSoldDate] = useState<string>(new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
-    fetchProducts();
-    // load user currency preference
-    supabase.auth.getSession().then(({ data }) => {
-      const user = data.session?.user ?? null;
-      if (user) setCurrency(user.user_metadata?.currency ?? "USD");
-    });
+    // load current user id and currency before fetching products
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const user = data.session?.user ?? null;
+        if (user) {
+          setCurrentUserId(user.id);
+          setCurrency(user.user_metadata?.currency ?? "USD");
+        } else {
+          setCurrentUserId(null);
+        }
+      } catch (e) {
+        setCurrentUserId(null);
+      }
+      // only fetch after we've attempted to load the session
+      fetchProducts();
+    })();
 
     const onUserUpdated = (e: Event) => {
       const custom = e as CustomEvent;
       const u = custom.detail ?? null;
       if (u?.user_metadata?.currency) setCurrency(u.user_metadata.currency);
+      // refresh products when user metadata changes
+      fetchProducts();
     };
     window.addEventListener("userUpdated", onUserUpdated);
     return () => window.removeEventListener("userUpdated", onUserUpdated);
@@ -126,12 +140,21 @@ export default function StockPage() {
   async function fetchProducts() {
     setLoading(true);
     try {
-      const res = await fetch("/api/products/list");
-      const json = await res.json();
+      const query = currentUserId ? `?userId=${encodeURIComponent(currentUserId)}` : "";
+      const res = await fetch(`/api/products/list${query}`);
+      const json = await res.json().catch(() => ({}));
       if (!json?.ok) {
-        console.error("fetchProducts server error:", json);
-        setFetchError(json?.error ?? "Server error");
-        setProducts([]);
+        // If the server indicates missing userId or returns empty object, treat as empty list
+        const errMsg = json?.error ?? null;
+        if (!errMsg || errMsg.toString().toLowerCase().includes("missing userid")) {
+          console.log("fetchProducts: no user or no products (empty)");
+          setFetchError(null);
+          setProducts([]);
+        } else {
+          console.error("fetchProducts server error:", json);
+          setFetchError(errMsg ?? "Server error");
+          setProducts([]);
+        }
       } else {
         console.log("fetchProducts: received", Array.isArray(json.data) ? json.data.length : 0, "items", json.data);
         setFetchError(null);
@@ -165,7 +188,7 @@ export default function StockPage() {
         const res = await fetch("/api/product-images/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dataUrl, fileName }),
+          body: JSON.stringify({ dataUrl, fileName, ownerId: currentUserId }),
         });
         const json = await res.json();
         if (json?.ok && json.publicUrl) urls.push(json.publicUrl);
@@ -236,7 +259,7 @@ export default function StockPage() {
         const upsertRes = await fetch("/api/products/upsert", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: editing?.id, ...payload }),
+          body: JSON.stringify({ id: editing?.id, ownerId: currentUserId, ...payload }),
         });
         const json = await upsertRes.json();
         if (!json?.ok) {
@@ -270,7 +293,7 @@ export default function StockPage() {
       const res = await fetch("/api/products/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, ownerId: currentUserId }),
       });
       const json = await res.json();
       if (!json?.ok) {

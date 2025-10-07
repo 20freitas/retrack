@@ -18,14 +18,26 @@ export async function POST(req: Request) {
   }
 
   const { id, ...payload } = body || {};
+  const ownerId = body?.ownerId ?? null;
+  // prevent accidental camelCase column from being used directly
+  if ((payload as any).ownerId) delete (payload as any).ownerId;
 
   try {
     if (id) {
+      // ensure owner match if provided
+      if (ownerId) {
+        const { data: existing, error: existsErr } = await supabase.from("products").select("owner_id").eq("id", id).single();
+        if (existsErr) return new Response(JSON.stringify({ ok: false, error: existsErr.message ?? existsErr }), { status: 500, headers: { "Content-Type": "application/json" } });
+        if (!existing || existing.owner_id !== ownerId) return new Response(JSON.stringify({ ok: false, error: "Not authorized to update this product" }), { status: 403, headers: { "Content-Type": "application/json" } });
+      }
+
       const { data, error } = await supabase.from("products").update(payload).eq("id", id).select();
       if (error) return new Response(JSON.stringify({ ok: false, error: error.message ?? error }), { status: 500, headers: { "Content-Type": "application/json" } });
       return new Response(JSON.stringify({ ok: true, data }), { status: 200, headers: { "Content-Type": "application/json" } });
     } else {
-      const { data, error } = await supabase.from("products").insert(payload).select();
+  // set owner_id when inserting (snake_case column)
+  if (ownerId) (payload as any).owner_id = ownerId;
+  const { data, error } = await supabase.from("products").insert(payload).select();
       if (error) return new Response(JSON.stringify({ ok: false, error: error.message ?? error }), { status: 500, headers: { "Content-Type": "application/json" } });
       return new Response(JSON.stringify({ ok: true, data }), { status: 200, headers: { "Content-Type": "application/json" } });
     }

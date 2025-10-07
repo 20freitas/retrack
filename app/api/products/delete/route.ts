@@ -17,11 +17,17 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ ok: false, error: "Invalid JSON" }), { status: 400, headers: { "Content-Type": "application/json" } });
   }
 
-  const { id } = body || {};
+  const { id, ownerId } = body || {};
   if (!id) return new Response(JSON.stringify({ ok: false, error: "Missing id" }), { status: 400, headers: { "Content-Type": "application/json" } });
+  if (!ownerId) return new Response(JSON.stringify({ ok: false, error: "Missing ownerId" }), { status: 400, headers: { "Content-Type": "application/json" } });
 
   try {
-    const { data, error } = await supabase.from("products").delete().eq("id", id).select();
+  // ensure owner matches
+  const { data: existing, error: existsErr } = await supabase.from("products").select("owner_id").eq("id", id).single();
+  if (existsErr) return new Response(JSON.stringify({ ok: false, error: existsErr.message ?? existsErr }), { status: 500, headers: { "Content-Type": "application/json" } });
+  if (!existing || existing.owner_id !== ownerId) return new Response(JSON.stringify({ ok: false, error: "Not authorized to delete this product" }), { status: 403, headers: { "Content-Type": "application/json" } });
+
+  const { data, error } = await supabase.from("products").delete().eq("id", id).select();
     if (error) return new Response(JSON.stringify({ ok: false, error: error.message ?? error }), { status: 500, headers: { "Content-Type": "application/json" } });
     return new Response(JSON.stringify({ ok: true, data }), { status: 200, headers: { "Content-Type": "application/json" } });
   } catch (e: any) {
