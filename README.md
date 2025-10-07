@@ -1,3 +1,32 @@
+# Retrack — Next.js + Supabase (Auth)
+
+This project is scaffolded with Next.js, Tailwind CSS and shadcn UI. I've added Supabase client and basic email/password auth forms for Register and Login.
+
+Quick setup
+
+1. Create a Supabase project at https://app.supabase.com.
+2. From the project settings > API, copy the Project URL and anon public key.
+3. Create a `.env.local` in the project root (add to .gitignore) and paste the values from `.env.example`.
+4. Install dependencies and run the dev server:
+
+```powershell
+Set-Location -Path 'C:\Users\20dio\Desktop\retrack'
+npm install
+npm run dev
+```
+
+How Auth and DB relate
+
+- Supabase Auth is a separate product that handles user registration, login, and session management. You do not need an additional database table just to use Auth with email/password — Supabase manages the auth users for you.
+- If later you want to store application-specific user data (profiles, preferences), create a table in the Supabase database and join it to Auth users via `user.id` (the `sub` field).
+
+Pages added
+- `/register` — email/password sign-up (client-side using the Supabase JS client)
+- `/login` — email/password sign-in
+
+Notes
+- Make sure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are present in `.env.local` before running.
+- This setup uses client-side auth calls; for more secure flows you can implement server-side session handling or use middleware.
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
