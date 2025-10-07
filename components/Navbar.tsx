@@ -20,16 +20,19 @@ export default function Navbar() {
       setUser(session?.user ?? null);
     });
 
+    const onUserUpdated = (e: Event) => {
+      const custom = e as CustomEvent;
+      setUser(custom.detail ?? null);
+    };
+
+    window.addEventListener("userUpdated", onUserUpdated);
+
     return () => {
       mounted = false;
       listener?.subscription?.unsubscribe();
+      window.removeEventListener("userUpdated", onUserUpdated);
     };
   }, []);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-  };
 
   return (
     <nav className="sticky top-4 z-50 pointer-events-auto">
@@ -51,14 +54,21 @@ export default function Navbar() {
                 </Link>
               </>
             ) : (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-violet-500 flex items-center justify-center text-white">
-                  <User size={18} />
-                </div>
-                <button onClick={handleSignOut} className="text-base opacity-95 hover:opacity-100 bg-transparent px-3 py-2 rounded-md border border-white/6">
-                  Sign out
-                </button>
-              </div>
+              <Link href="/profile" className="block">
+                {user?.user_metadata?.avatar_url ? (
+                  <Image
+                    src={user.user_metadata.avatar_url}
+                    alt="Avatar"
+                    width={40}
+                    height={40}
+                    className="rounded-full object-cover border border-white/10"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-violet-500 flex items-center justify-center text-white">
+                    <User size={18} />
+                  </div>
+                )}
+              </Link>
             )}
           </div>
         </div>
