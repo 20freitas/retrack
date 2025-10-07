@@ -18,6 +18,7 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [currency, setCurrency] = useState<string>("USD");
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
@@ -30,6 +31,7 @@ export default function ProfilePage() {
         setEmail(currentUser.email ?? "");
         setName(currentUser.user_metadata?.name ?? "");
         setAvatarUrl(currentUser.user_metadata?.avatar_url ?? null);
+        setCurrency(currentUser.user_metadata?.currency ?? "USD");
       }
     });
   }, []);
@@ -226,18 +228,74 @@ export default function ProfilePage() {
     setMessage(null);
 
     try {
-      const { data, error } = await supabase.auth.updateUser({
-        data: { name },
-      });
+      // Use server endpoint to update user metadata to avoid client fetch interception
+      const current = (await supabase.auth.getSession()).data.session?.user ?? null;
+      if (!current) throw new Error("No authenticated user");
 
-      if (error) throw error;
-
-      setMessage({ type: "success", text: "Profile updated successfully." });
-
+      // Try normal fetch first
+      let ok = false;
       try {
-        const updatedUser = data?.user ?? null;
-        window.dispatchEvent(new CustomEvent("userUpdated", { detail: updatedUser }));
-      } catch (e) {}
+        const res = await fetch("/api/user/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: current.id, metadata: { name, currency, avatar_url: current.user_metadata?.avatar_url } }),
+        });
+        // If content-type is HTML (iframe fallback response) treat as failure for fetch path
+        const ct = res.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const json = await res.json();
+          if (!json?.ok) throw new Error(json?.error || "Update failed");
+          ok = true;
+        } else {
+          // non-JSON response likely from interception or iframe path — fall back
+          throw new Error("Non-JSON response, falling back to iframe method");
+        }
+      } catch (fetchErr) {
+        console.warn("Fetch update failed, attempting iframe fallback:", fetchErr);
+
+        // iframe fallback: build a hidden form and listen for postMessage from the server HTML response
+        ok = await new Promise<boolean>((resolve) => {
+          const iframe = document.createElement("iframe");
+          iframe.style.display = "none";
+          iframe.name = `update-iframe-${Date.now()}`;
+          document.body.appendChild(iframe);
+
+          const onMessage = (ev: MessageEvent) => {
+            const d = ev.data;
+            if (d && typeof d === "object") {
+              window.removeEventListener("message", onMessage);
+              document.body.removeChild(iframe);
+              resolve(Boolean(d.ok));
+            }
+          };
+          window.addEventListener("message", onMessage);
+
+          const form = document.createElement("form");
+          form.method = "POST";
+          form.action = "/api/user/update";
+          form.target = iframe.name;
+
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = "payload";
+          input.value = JSON.stringify({ userId: current.id, metadata: { name, currency, avatar_url: current.user_metadata?.avatar_url } });
+          form.appendChild(input);
+          document.body.appendChild(form);
+
+          form.submit();
+          setTimeout(() => {
+            try { form.remove(); } catch (e) {}
+          }, 2000);
+        });
+      }
+
+      if (!ok) throw new Error("Update failed (both fetch and iframe fallback)");
+
+      // Notify client components and update local state
+  const refreshed = await supabase.auth.getUser();
+  const updatedUser = refreshed?.data?.user ?? { ...current, user_metadata: { ...(current.user_metadata ?? {}), name, currency } };
+  window.dispatchEvent(new CustomEvent("userUpdated", { detail: updatedUser }));
+  setMessage({ type: "success", text: "Profile updated successfully." });
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || "Failed to update profile." });
     } finally {
@@ -334,6 +392,16 @@ export default function ProfilePage() {
               <Input type="email" value={email} disabled className="opacity-50 cursor-not-allowed" />
               <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-300">Preferred currency</label>
+              <select className="w-full px-3 py-2 rounded bg-[#0b0f13] text-white" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                <option className="text-white" value="USD">USD ($)</option>
+                <option className="text-white" value="EUR">EUR (€)</option>
+                <option className="text-white" value="GBP">GBP (£)</option>
+                <option className="text-white" value="JPY">JPY (¥)</option>
+                <option className="text-white" value="AUD">AUD (A$)</option>
+              </select>
+            </div>
             <Button type="submit" disabled={loading}>
               {loading ? "Saving…" : "Save changes"}
             </Button>
@@ -363,8 +431,42 @@ export default function ProfilePage() {
           <Button
             variant="ghost"
             onClick={async () => {
-              await supabase.auth.signOut();
-              window.location.href = "/";
+              try {
+                // Try to sign out via Supabase client
+                await supabase.auth.signOut();
+              } catch (e) {
+                console.warn('supabase.signOut failed', e);
+              }
+
+              // Clear common Supabase keys from localStorage in case an extension prevented proper sign-out
+              try {
+                const keys = Object.keys(localStorage || {});
+                for (const k of keys) {
+                  if (k.toLowerCase().includes('supabase') || k.startsWith('sb-') || k.includes('auth')) {
+                    try { localStorage.removeItem(k); } catch (e) {}
+                  }
+                }
+              } catch (e) {
+                // ignore
+              }
+
+              // Attempt to clear known auth cookies by expiring them
+              try {
+                const cookies = document.cookie.split(';');
+                for (const c of cookies) {
+                  const eq = c.indexOf('=');
+                  const name = eq > -1 ? c.substr(0, eq).trim() : c.trim();
+                  if (!name) continue;
+                  // expire cookie
+                  document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/;';
+                }
+              } catch (e) {}
+
+              // Notify app components that user is signed out
+              try { window.dispatchEvent(new CustomEvent('userUpdated', { detail: null })); } catch (e) {}
+
+              // Finally redirect to the homepage
+              window.location.href = '/';
             }}
             className="w-full text-red-400 border-red-400/20 hover:bg-red-500/10"
           >
