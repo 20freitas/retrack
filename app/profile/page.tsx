@@ -62,15 +62,148 @@ export default function ProfilePage() {
     setMessage(null);
 
     try {
-      const { data, error: updateError } = await supabase.auth.updateUser({
-        data: { avatar_url: croppedImage },
-      });
+      // Convert data URL to a Blob
+      const dataURLtoBlob = (dataurl: string) => {
+        const arr = dataurl.split(",");
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : "image/png";
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+      };
 
+      const blob = dataURLtoBlob(croppedImage);
+
+      // Ensure user is available
+      const current = (await supabase.auth.getSession()).data.session?.user ?? null;
+      if (!current) throw new Error("No authenticated user");
+
+      // Build a safe path and upload to the `avatars` bucket
+      const fileExt = blob.type === "image/png" ? "png" : "jpg";
+  const fileName = `${current.id}/avatar-${Date.now()}.${fileExt}`;
+
+      let uploadError: any = null;
+      let uploadException: any = null;
+      try {
+        const res = await supabase.storage.from("avatars").upload(fileName, blob, {
+          cacheControl: "3600",
+          upsert: true,
+          contentType: blob.type,
+        });
+        uploadError = (res as any).error ?? null;
+      } catch (err) {
+        console.error("Storage upload failed (network)", err);
+        uploadException = err;
+      }
+
+      if (uploadException || uploadError) {
+        // First fallback: server-side upload via hidden iframe (avoids fetch interception)
+        try {
+          const publicUrlFromServer = await new Promise<string>((resolve, reject) => {
+            const iframe = document.createElement("iframe");
+            iframe.style.display = "none";
+            iframe.name = `upload-iframe-${Date.now()}`;
+            document.body.appendChild(iframe);
+
+            const onMessage = (ev: MessageEvent) => {
+              const d = ev.data;
+              if (d?.ok) {
+                window.removeEventListener("message", onMessage);
+                document.body.removeChild(iframe);
+                resolve(d.url);
+              } else {
+                window.removeEventListener("message", onMessage);
+                document.body.removeChild(iframe);
+                reject(new Error(d?.error || "Server upload failed"));
+              }
+            };
+
+            window.addEventListener("message", onMessage);
+
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "/api/avatar/upload";
+            form.target = iframe.name;
+
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = "payload";
+            input.value = JSON.stringify({ dataUrl: croppedImage, fileName, userId: current.id });
+            form.appendChild(input);
+            document.body.appendChild(form);
+
+            form.submit();
+            setTimeout(() => form.remove(), 2000);
+          });
+
+          // server already updated user metadata; update local UI and notify components
+          setAvatarUrl(publicUrlFromServer);
+          setMessage({ type: "success", text: "Avatar updated successfully." });
+
+          // Refresh client-side user info from Supabase so the updated metadata persists
+          try {
+            const { data: refreshed, error: refreshedError } = await supabase.auth.getUser();
+            if (!refreshedError && refreshed?.user) {
+              setUser(refreshed.user as any);
+              window.dispatchEvent(new CustomEvent("userUpdated", { detail: refreshed.user }));
+            } else {
+              const updatedUser = { ...current, user_metadata: { ...(current.user_metadata ?? {}), avatar_url: publicUrlFromServer } };
+              window.dispatchEvent(new CustomEvent("userUpdated", { detail: updatedUser }));
+            }
+          } catch (e) {
+            const updatedUser = { ...current, user_metadata: { ...(current.user_metadata ?? {}), avatar_url: publicUrlFromServer } };
+            window.dispatchEvent(new CustomEvent("userUpdated", { detail: updatedUser }));
+          }
+
+          setLoading(false);
+          setTempImageUrl(null);
+          return;
+        } catch (iframeErr) {
+          console.error("Server iframe upload failed", iframeErr);
+
+          // Second fallback: try to save data URL into user metadata (only if small)
+          const approxBytes = croppedImage.length * 3 / 4;
+          if (approxBytes > 2 * 1024 * 1024) {
+            setMessage({ type: "error", text: "Upload failed and image is too large for fallback." });
+            throw uploadException ?? uploadError ?? new Error("Upload failed");
+          }
+
+          const { data: fbData, error: fbErr } = await supabase.auth.updateUser({ data: { avatar_url: croppedImage } });
+          if (fbErr) {
+            console.error("Fallback updateUser failed", fbErr);
+            setMessage({ type: "error", text: fbErr.message || "Fallback upload failed." });
+            throw fbErr;
+          }
+
+          setAvatarUrl(croppedImage);
+          setMessage({ type: "success", text: "Avatar updated successfully." });
+          try {
+            const updatedUser = fbData?.user ?? null;
+            window.dispatchEvent(new CustomEvent("userUpdated", { detail: updatedUser }));
+          } catch {}
+
+          setLoading(false);
+          setTempImageUrl(null);
+          return;
+        }
+      }
+
+      // Get public URL for the uploaded file
+  const publicRes = supabase.storage.from("avatars").getPublicUrl(fileName);
+  const publicUrl = publicRes?.data?.publicUrl ?? null;
+  if (!publicUrl) throw new Error("Failed to get public URL for uploaded avatar");
+
+      // Update user metadata with the new public URL
+      const { data, error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
       if (updateError) throw updateError;
 
       // update local state
-      setAvatarUrl(croppedImage);
-      setMessage({ type: "success", text: "Avatar updated successfully." });
+      setAvatarUrl(publicUrl);
+  setMessage({ type: "success", text: "Avatar updated successfully." });
 
       // notify other components (Navbar) that user metadata changed
       try {
@@ -239,6 +372,8 @@ export default function ProfilePage() {
           </Button>
         </div>
       </div>
+
+      {/* Dev-only debug tools removed */}
 
       {/* Crop Modal */}
       {showCropModal && tempImageUrl && (

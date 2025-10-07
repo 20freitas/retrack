@@ -3,11 +3,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 import { User } from "lucide-react";
 
 export default function Navbar() {
   const [user, setUser] = useState<any | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     let mounted = true;
@@ -37,11 +39,36 @@ export default function Navbar() {
   return (
     <nav className="sticky top-4 z-50 pointer-events-auto">
       <div className="mx-auto max-w-6xl px-6">
-  <div className="flex items-center justify-between rounded-xl bg-[#0b0f13]/85 border border-white/9 py-4 px-6 shadow-md">
+        <div className="flex items-center justify-between rounded-xl bg-[#0b0f13]/85 border border-white/9 py-4 px-6 shadow-md">
           <Link href="/" className="flex items-center">
             <Image src="/retrack (3).png" alt="retrack" width={96} height={96} className="rounded-md" />
             <span className="sr-only">retrack</span>
           </Link>
+
+          {/* Dashboard tabs shown when on the dashboard routes */}
+          {pathname?.startsWith("/dashboard") ? (
+            <div className="hidden md:flex items-center gap-3 ml-6">
+              {[
+                { href: "/dashboard/stock", label: "Stock" },
+                { href: "/dashboard/sales", label: "Sales" },
+                { href: "/dashboard/finance", label: "Finance" },
+                { href: "/dashboard/analytics", label: "Analytics" },
+              ].map((t) => {
+                const active = pathname === t.href || pathname?.startsWith(t.href + "/");
+                return (
+                  <Link
+                    key={t.href}
+                    href={t.href}
+                    className={`px-3 py-1 rounded-full text-sm transition-colors duration-150 ${
+                      active ? "bg-white/8 text-white font-semibold" : "text-white/70 hover:text-white"
+                    }`}
+                  >
+                    {t.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ) : null}
 
           <div className="flex items-center gap-4">
             {!user ? (
@@ -54,7 +81,11 @@ export default function Navbar() {
                 </Link>
               </>
             ) : (
-              <Link href="/profile" className="block">
+              <div className="flex items-center gap-4">
+                <Link href="/dashboard" className="text-base opacity-95 hover:opacity-100">
+                  Dashboard
+                </Link>
+                <Link href="/profile" className="block">
                 {user?.user_metadata?.avatar_url ? (
                   <Image
                     src={user.user_metadata.avatar_url}
@@ -68,7 +99,8 @@ export default function Navbar() {
                     <User size={18} />
                   </div>
                 )}
-              </Link>
+                </Link>
+              </div>
             )}
           </div>
         </div>
