@@ -336,22 +336,22 @@ export default function StockPage() {
     try {
       const newTags = Array.from(new Set([...(p.tags||[]), 'sold']));
       
-      // Create a sold_info object to store sale details
-      const soldInfo = {
-        sale_price: salePrice,
-        sale_date: soldDate,
-        purchase_price: p.purchase_price || 0,
-        profit: salePrice - (p.purchase_price || 0)
-      };
+      // Calculate profit metrics
+      const purchasePrice = p.purchase_price || 0;
+      const profit = salePrice - purchasePrice;
+      const margin = salePrice > 0 ? (profit / salePrice) * 100 : 0;
+      const roi = purchasePrice > 0 ? (profit / purchasePrice) * 100 : 0;
       
+      // Update product status to sold
       const res = await fetch('/api/products/upsert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          id: p.id, 
+          id: p.id,
+          ownerId: currentUserId,
           status: 'sold', 
           tags: newTags,
-          description: p.description ? `${p.description}\n\n[SOLD INFO] Sale Price: ${formatCurrency(salePrice, currency)} | Sale Date: ${soldDate} | Profit: ${formatCurrency(soldInfo.profit, currency)}` : `[SOLD INFO] Sale Price: ${formatCurrency(salePrice, currency)} | Sale Date: ${soldDate} | Profit: ${formatCurrency(soldInfo.profit, currency)}`
+          description: p.description ? `${p.description}\n\n[SOLD INFO] Sale Price: ${formatCurrency(salePrice, currency)} | Sale Date: ${soldDate} | Profit: ${formatCurrency(profit, currency)}` : `[SOLD INFO] Sale Price: ${formatCurrency(salePrice, currency)} | Sale Date: ${soldDate} | Profit: ${formatCurrency(profit, currency)}`
         }),
       });
       const json = await res.json();
@@ -360,8 +360,44 @@ export default function StockPage() {
         setMessage({ type: "error", text: 'Could not mark as sold: ' + (json?.error ?? 'unknown') });
         return;
       }
+
+      // Automatically create a sale record in the sales table
+      try {
+        const salePayload = {
+          product_id: p.id,
+          product_title: p.title,
+          product_image: p.images?.[0],  // Add product image
+          sale_price: salePrice,
+          sale_date: soldDate,
+          purchase_price: purchasePrice,
+          profit,
+          margin,
+          roi,
+          platform: "Stock", // Default platform when sold from stock
+          shipping_cost: 0,
+          platform_fee: 0,
+        };
+
+        const saleRes = await fetch('/api/sales/upsert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ownerId: currentUserId, ...salePayload }),
+        });
+        
+        const saleJson = await saleRes.json();
+        if (!saleJson?.ok) {
+          console.error('Failed to create sale record:', saleJson);
+          // Don't fail the whole operation, just log it
+        } else {
+          console.log('Sale record created automatically');
+        }
+      } catch (saleErr) {
+        console.error('Exception creating sale record:', saleErr);
+        // Don't fail the whole operation
+      }
+
       fetchProducts();
-      setMessage({ type: "success", text: `Product sold for ${formatCurrency(salePrice, currency)}! Profit: ${formatCurrency(soldInfo.profit, currency)}` });
+      setMessage({ type: "success", text: `Product sold for ${formatCurrency(salePrice, currency)}! Profit: ${formatCurrency(profit, currency)}` });
     } catch (e) {
       console.error('markAsSold exception', e);
       setMessage({ type: "error", text: 'Mark sold failed' });
