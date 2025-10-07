@@ -12,10 +12,11 @@ export async function GET(req: Request) {
 
   try {
   const url = new URL(req.url);
-  // try reading userId from query params
-  const userId = url.searchParams.get("userId") || null;
+    // try reading userId from query params
+    const userId = url.searchParams.get("userId") || null;
     if (!userId) {
-      return new Response(JSON.stringify({ ok: false, error: "Missing userId query parameter" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      // no userId provided — return empty list rather than an error (client may call before session is ready)
+      return new Response(JSON.stringify({ ok: true, data: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
 
     const { data, error } = await supabase
@@ -26,6 +27,9 @@ export async function GET(req: Request) {
     if (error) {
       return new Response(JSON.stringify({ ok: false, error: error.message ?? error }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
+    try {
+      console.log(`[products/list] userId=${userId} returned=${Array.isArray(data) ? data.length : 0}`);
+    } catch (e) {}
     return new Response(JSON.stringify({ ok: true, data }), { status: 200, headers: { "Content-Type": "application/json" } });
   } catch (e: any) {
     return new Response(JSON.stringify({ ok: false, error: e?.message ?? String(e) }), { status: 500, headers: { "Content-Type": "application/json" } });

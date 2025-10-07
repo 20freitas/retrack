@@ -19,6 +19,11 @@ export async function POST(req: Request) {
 
   const { id, ...payload } = body || {};
   const ownerId = body?.ownerId ?? null;
+  try {
+    console.log('[products/upsert] body=', JSON.stringify(body));
+    console.log('[products/upsert] ownerId=', ownerId);
+    console.log('[products/upsert] payloadKeys=', Object.keys(payload || {}));
+  } catch (e) {}
   // prevent accidental camelCase column from being used directly
   if ((payload as any).ownerId) delete (payload as any).ownerId;
 
@@ -32,11 +37,13 @@ export async function POST(req: Request) {
       }
 
       const { data, error } = await supabase.from("products").update(payload).eq("id", id).select();
+      try { console.log('[products/upsert] update payload keys=', Object.keys(payload || {})); } catch (e) {}
       if (error) return new Response(JSON.stringify({ ok: false, error: error.message ?? error }), { status: 500, headers: { "Content-Type": "application/json" } });
       return new Response(JSON.stringify({ ok: true, data }), { status: 200, headers: { "Content-Type": "application/json" } });
     } else {
   // set owner_id when inserting (snake_case column)
   if (ownerId) (payload as any).owner_id = ownerId;
+  try { console.log('[products/upsert] insert payload keys=', Object.keys(payload || {})); } catch (e) {}
   const { data, error } = await supabase.from("products").insert(payload).select();
       if (error) return new Response(JSON.stringify({ ok: false, error: error.message ?? error }), { status: 500, headers: { "Content-Type": "application/json" } });
       return new Response(JSON.stringify({ ok: true, data }), { status: 200, headers: { "Content-Type": "application/json" } });

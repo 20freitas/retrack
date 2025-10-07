@@ -18,6 +18,7 @@ export async function POST(req: Request) {
   }
 
   const { id, ownerId } = body || {};
+  try { console.log('[products/delete] id=', id, ' ownerId=', ownerId); } catch (e) {}
   if (!id) return new Response(JSON.stringify({ ok: false, error: "Missing id" }), { status: 400, headers: { "Content-Type": "application/json" } });
   if (!ownerId) return new Response(JSON.stringify({ ok: false, error: "Missing ownerId" }), { status: 400, headers: { "Content-Type": "application/json" } });
 

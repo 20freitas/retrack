@@ -92,14 +92,16 @@ export default function StockPage() {
         if (user) {
           setCurrentUserId(user.id);
           setCurrency(user.user_metadata?.currency ?? "USD");
+          // pass userId directly since state update is async
+          fetchProducts(user.id);
         } else {
           setCurrentUserId(null);
+          fetchProducts(null);
         }
       } catch (e) {
         setCurrentUserId(null);
+        fetchProducts(null);
       }
-      // only fetch after we've attempted to load the session
-      fetchProducts();
     })();
 
     const onUserUpdated = (e: Event) => {
@@ -107,7 +109,7 @@ export default function StockPage() {
       const u = custom.detail ?? null;
       if (u?.user_metadata?.currency) setCurrency(u.user_metadata.currency);
       // refresh products when user metadata changes
-      fetchProducts();
+      fetchProducts(u?.id ?? null);
     };
     window.addEventListener("userUpdated", onUserUpdated);
     return () => window.removeEventListener("userUpdated", onUserUpdated);
@@ -137,10 +139,11 @@ export default function StockPage() {
     return { itemsCount, totalSpent, suppliersCount: suppliers.length, avgPrice };
   }, [products]);
 
-  async function fetchProducts() {
+  async function fetchProducts(userId?: string | null) {
     setLoading(true);
     try {
-      const query = currentUserId ? `?userId=${encodeURIComponent(currentUserId)}` : "";
+      const uid = userId ?? currentUserId;
+      const query = uid ? `?userId=${encodeURIComponent(uid)}` : "";
       const res = await fetch(`/api/products/list${query}`);
       const json = await res.json().catch(() => ({}));
       if (!json?.ok) {
@@ -235,6 +238,12 @@ export default function StockPage() {
   async function handleSubmit(e?: any) {
     e?.preventDefault?.();
     const isEdit = !!editing?.id;
+    // ensure we have a current user id before creating/updating products
+    if (!currentUserId) {
+      setMessage({ type: "error", text: "No authenticated user detected. Please sign in before saving products." });
+      return;
+    }
+
     try {
       let imageUrls: string[] = editing?.images ?? [];
       if (formImages.length) {
@@ -257,10 +266,10 @@ export default function StockPage() {
       // Send payload to server-side upsert endpoint which uses the service role key
       try {
         const upsertRes = await fetch("/api/products/upsert", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: editing?.id, ownerId: currentUserId, ...payload }),
-        });
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: editing?.id, ownerId: currentUserId, ...payload }),
+          });
         const json = await upsertRes.json();
         if (!json?.ok) {
           console.error("server upsert failed", json);
@@ -519,7 +528,7 @@ export default function StockPage() {
                 </div>
               </div>
               <button 
-                onClick={fetchProducts} 
+                onClick={() => fetchProducts()} 
                 className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors text-white text-sm font-medium"
               >
                 Retry
