@@ -11,7 +11,6 @@ import {
   Upload,
   Lock,
   Mail,
-  DollarSign,
   LogOut,
   Camera,
 } from "lucide-react";
@@ -26,7 +25,6 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [currency, setCurrency] = useState<string>("USD");
   const [message, setMessage] = useState<{
     type: "error" | "success";
     text: string;
@@ -42,7 +40,6 @@ export default function ProfilePage() {
         setEmail(currentUser.email ?? "");
         setName(currentUser.user_metadata?.name ?? "");
         setAvatarUrl(currentUser.user_metadata?.avatar_url ?? null);
-        setCurrency(currentUser.user_metadata?.currency ?? "USD");
       }
     });
   }, []);
@@ -300,7 +297,6 @@ export default function ProfilePage() {
             userId: current.id,
             metadata: {
               name,
-              currency,
               avatar_url: current.user_metadata?.avatar_url,
             },
           }),
@@ -350,7 +346,6 @@ export default function ProfilePage() {
             userId: current.id,
             metadata: {
               name,
-              currency,
               avatar_url: current.user_metadata?.avatar_url,
             },
           });
@@ -373,7 +368,7 @@ export default function ProfilePage() {
       const refreshed = await supabase.auth.getUser();
       const updatedUser = refreshed?.data?.user ?? {
         ...current,
-        user_metadata: { ...(current.user_metadata ?? {}), name, currency },
+        user_metadata: { ...(current.user_metadata ?? {}), name },
       };
       window.dispatchEvent(
         new CustomEvent("userUpdated", { detail: updatedUser })
@@ -565,41 +560,6 @@ export default function ProfilePage() {
                 <Lock size={12} />
                 Email cannot be changed for security reasons
               </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <DollarSign size={14} className="inline mr-1" />
-                Preferred Currency
-              </label>
-              <select
-                className="w-full px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 focus:outline-none transition-colors text-white cursor-pointer appearance-none"
-                style={{
-                  backgroundImage:
-                    "url(\"data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "right 12px center",
-                  paddingRight: "40px",
-                }}
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-              >
-                <option className="bg-[#0b0f13] text-white" value="USD">
-                  USD ($)
-                </option>
-                <option className="bg-[#0b0f13] text-white" value="EUR">
-                  EUR (€)
-                </option>
-                <option className="bg-[#0b0f13] text-white" value="GBP">
-                  GBP (£)
-                </option>
-                <option className="bg-[#0b0f13] text-white" value="JPY">
-                  JPY (¥)
-                </option>
-                <option className="bg-[#0b0f13] text-white" value="AUD">
-                  AUD (A$)
-                </option>
-              </select>
             </div>
 
             <div className="pt-2">
