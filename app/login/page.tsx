@@ -12,7 +12,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "error" | "success";
+    text: string;
+  } | null>(null);
 
   const router = useRouter();
 
@@ -20,7 +23,10 @@ export default function LoginPage() {
     e.preventDefault();
     setMessage(null);
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     setLoading(false);
     if (error) setMessage({ type: "error", text: error.message });
     else {
@@ -30,56 +36,114 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen px-6 py-16">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr,1.2fr] gap-16 items-center">
-          {/* Left: Hero Content */}
-          <div className="space-y-8 lg:pr-12">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-5xl">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-12 items-center">
+          {/* Left: Info Section */}
+          <div className="hidden lg:block space-y-6 pr-8">
             <div className="space-y-4">
-              <div className="inline-block px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm font-medium">
+              <div className="inline-block px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-sm font-medium">
                 Welcome Back
               </div>
-              <h1 className="text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-br from-white via-white to-gray-400 bg-clip-text text-transparent">
+              <h1 className="text-5xl font-bold text-white leading-tight">
                 Sign in to continue
               </h1>
               <p className="text-lg text-gray-400 leading-relaxed">
-                Access your account to pick up where you left off. Track your progress and manage your tasks efficiently.
+                Access your account to pick up where you left off. Track your
+                progress and manage your tasks efficiently.
               </p>
             </div>
-            {message && (
-              <Alert type={message.type === "error" ? "error" : "success"}>{message.text}</Alert>
-            )}
           </div>
 
           {/* Right: Form */}
-          <div className="bg-card/10 backdrop-blur-sm border border-white/8 rounded-2xl p-8 shadow-2xl">
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-300">Email address</label>
-                <Input type="email" placeholder="you@example.com" value={email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} required />
+          <div className="w-full">
+            {/* Mobile Header */}
+            <div className="lg:hidden text-center mb-8">
+              <h1 className="text-3xl font-bold text-white mb-2">
+                Welcome back
+              </h1>
+              <p className="text-gray-400">Sign in to your account</p>
+            </div>
+
+            {message && (
+              <div className="mb-6">
+                <Alert type={message.type === "error" ? "error" : "success"}>
+                  {message.text}
+                </Alert>
               </div>
+            )}
 
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-300">Password</label>
-                <Input type={show ? "text" : "password"} placeholder="••••••••" value={password} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} required />
-              </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-8 lg:p-10">
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Email address
+                  </label>
+                  <Input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setEmail(e.target.value)
+                    }
+                    required
+                    className="h-12 focus:ring-blue-500/50 focus:border-blue-500"
+                  />
+                </div>
 
-              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                <input type="checkbox" checked={show} onChange={() => setShow((s) => !s)} className="rounded" />
-                Show password
-              </label>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Password
+                  </label>
+                  <Input
+                    type={show ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setPassword(e.target.value)
+                    }
+                    required
+                    className="h-12 focus:ring-blue-500/50 focus:border-blue-500"
+                  />
+                </div>
 
-              <Button type="submit" disabled={loading} className="w-full h-11 text-base font-semibold">
-                {loading ? "Signing in…" : "Sign in"}
-              </Button>
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2.5 text-sm text-gray-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={show}
+                      onChange={() => setShow((s) => !s)}
+                      className="w-4 h-4 rounded border-gray-600 bg-white/5 text-blue-500 focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-0"
+                    />
+                    Show password
+                  </label>
+                  <a
+                    href="#"
+                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    Forgot password?
+                  </a>
+                </div>
 
-              <p className="text-center text-sm text-gray-400">
-                Don't have an account?{" "}
-                <a href="/register" className="text-violet-400 hover:text-violet-300 font-medium">
-                  Create one
-                </a>
-              </p>
-            </form>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-12 text-base font-semibold bg-white text-black hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded-lg"
+                >
+                  {loading ? "Signing in..." : "Sign in"}
+                </button>
+
+                <p className="text-center text-sm text-gray-400 pt-2">
+                  Don't have an account?{" "}
+                  <a
+                    href="/register"
+                    className="text-white hover:underline font-medium transition-colors"
+                  >
+                    Create one
+                  </a>
+                </p>
+              </form>
+            </div>
           </div>
         </div>
       </div>

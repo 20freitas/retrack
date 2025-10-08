@@ -6,7 +6,15 @@ import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { Alert } from "../../components/ui/alert";
 import { ImageCropModal } from "../../components/ui/ImageCropModal";
-import { User, Upload } from "lucide-react";
+import {
+  User,
+  Upload,
+  Lock,
+  Mail,
+  DollarSign,
+  LogOut,
+  Camera,
+} from "lucide-react";
 import Image from "next/image";
 
 export default function ProfilePage() {
@@ -19,7 +27,10 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [currency, setCurrency] = useState<string>("USD");
-  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "error" | "success";
+    text: string;
+  } | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
 
@@ -81,21 +92,24 @@ export default function ProfilePage() {
       const blob = dataURLtoBlob(croppedImage);
 
       // Ensure user is available
-      const current = (await supabase.auth.getSession()).data.session?.user ?? null;
+      const current =
+        (await supabase.auth.getSession()).data.session?.user ?? null;
       if (!current) throw new Error("No authenticated user");
 
       // Build a safe path and upload to the `avatars` bucket
       const fileExt = blob.type === "image/png" ? "png" : "jpg";
-  const fileName = `${current.id}/avatar-${Date.now()}.${fileExt}`;
+      const fileName = `${current.id}/avatar-${Date.now()}.${fileExt}`;
 
       let uploadError: any = null;
       let uploadException: any = null;
       try {
-        const res = await supabase.storage.from("avatars").upload(fileName, blob, {
-          cacheControl: "3600",
-          upsert: true,
-          contentType: blob.type,
-        });
+        const res = await supabase.storage
+          .from("avatars")
+          .upload(fileName, blob, {
+            cacheControl: "3600",
+            upsert: true,
+            contentType: blob.type,
+          });
         uploadError = (res as any).error ?? null;
       } catch (err) {
         console.error("Storage upload failed (network)", err);
@@ -105,42 +119,48 @@ export default function ProfilePage() {
       if (uploadException || uploadError) {
         // First fallback: server-side upload via hidden iframe (avoids fetch interception)
         try {
-          const publicUrlFromServer = await new Promise<string>((resolve, reject) => {
-            const iframe = document.createElement("iframe");
-            iframe.style.display = "none";
-            iframe.name = `upload-iframe-${Date.now()}`;
-            document.body.appendChild(iframe);
+          const publicUrlFromServer = await new Promise<string>(
+            (resolve, reject) => {
+              const iframe = document.createElement("iframe");
+              iframe.style.display = "none";
+              iframe.name = `upload-iframe-${Date.now()}`;
+              document.body.appendChild(iframe);
 
-            const onMessage = (ev: MessageEvent) => {
-              const d = ev.data;
-              if (d?.ok) {
-                window.removeEventListener("message", onMessage);
-                document.body.removeChild(iframe);
-                resolve(d.url);
-              } else {
-                window.removeEventListener("message", onMessage);
-                document.body.removeChild(iframe);
-                reject(new Error(d?.error || "Server upload failed"));
-              }
-            };
+              const onMessage = (ev: MessageEvent) => {
+                const d = ev.data;
+                if (d?.ok) {
+                  window.removeEventListener("message", onMessage);
+                  document.body.removeChild(iframe);
+                  resolve(d.url);
+                } else {
+                  window.removeEventListener("message", onMessage);
+                  document.body.removeChild(iframe);
+                  reject(new Error(d?.error || "Server upload failed"));
+                }
+              };
 
-            window.addEventListener("message", onMessage);
+              window.addEventListener("message", onMessage);
 
-            const form = document.createElement("form");
-            form.method = "POST";
-            form.action = "/api/avatar/upload";
-            form.target = iframe.name;
+              const form = document.createElement("form");
+              form.method = "POST";
+              form.action = "/api/avatar/upload";
+              form.target = iframe.name;
 
-            const input = document.createElement("input");
-            input.type = "hidden";
-            input.name = "payload";
-            input.value = JSON.stringify({ dataUrl: croppedImage, fileName, userId: current.id });
-            form.appendChild(input);
-            document.body.appendChild(form);
+              const input = document.createElement("input");
+              input.type = "hidden";
+              input.name = "payload";
+              input.value = JSON.stringify({
+                dataUrl: croppedImage,
+                fileName,
+                userId: current.id,
+              });
+              form.appendChild(input);
+              document.body.appendChild(form);
 
-            form.submit();
-            setTimeout(() => form.remove(), 2000);
-          });
+              form.submit();
+              setTimeout(() => form.remove(), 2000);
+            }
+          );
 
           // server already updated user metadata; update local UI and notify components
           setAvatarUrl(publicUrlFromServer);
@@ -148,17 +168,36 @@ export default function ProfilePage() {
 
           // Refresh client-side user info from Supabase so the updated metadata persists
           try {
-            const { data: refreshed, error: refreshedError } = await supabase.auth.getUser();
+            const { data: refreshed, error: refreshedError } =
+              await supabase.auth.getUser();
             if (!refreshedError && refreshed?.user) {
               setUser(refreshed.user as any);
-              window.dispatchEvent(new CustomEvent("userUpdated", { detail: refreshed.user }));
+              window.dispatchEvent(
+                new CustomEvent("userUpdated", { detail: refreshed.user })
+              );
             } else {
-              const updatedUser = { ...current, user_metadata: { ...(current.user_metadata ?? {}), avatar_url: publicUrlFromServer } };
-              window.dispatchEvent(new CustomEvent("userUpdated", { detail: updatedUser }));
+              const updatedUser = {
+                ...current,
+                user_metadata: {
+                  ...(current.user_metadata ?? {}),
+                  avatar_url: publicUrlFromServer,
+                },
+              };
+              window.dispatchEvent(
+                new CustomEvent("userUpdated", { detail: updatedUser })
+              );
             }
           } catch (e) {
-            const updatedUser = { ...current, user_metadata: { ...(current.user_metadata ?? {}), avatar_url: publicUrlFromServer } };
-            window.dispatchEvent(new CustomEvent("userUpdated", { detail: updatedUser }));
+            const updatedUser = {
+              ...current,
+              user_metadata: {
+                ...(current.user_metadata ?? {}),
+                avatar_url: publicUrlFromServer,
+              },
+            };
+            window.dispatchEvent(
+              new CustomEvent("userUpdated", { detail: updatedUser })
+            );
           }
 
           setLoading(false);
@@ -168,16 +207,24 @@ export default function ProfilePage() {
           console.error("Server iframe upload failed", iframeErr);
 
           // Second fallback: try to save data URL into user metadata (only if small)
-          const approxBytes = croppedImage.length * 3 / 4;
+          const approxBytes = (croppedImage.length * 3) / 4;
           if (approxBytes > 2 * 1024 * 1024) {
-            setMessage({ type: "error", text: "Upload failed and image is too large for fallback." });
+            setMessage({
+              type: "error",
+              text: "Upload failed and image is too large for fallback.",
+            });
             throw uploadException ?? uploadError ?? new Error("Upload failed");
           }
 
-          const { data: fbData, error: fbErr } = await supabase.auth.updateUser({ data: { avatar_url: croppedImage } });
+          const { data: fbData, error: fbErr } = await supabase.auth.updateUser(
+            { data: { avatar_url: croppedImage } }
+          );
           if (fbErr) {
             console.error("Fallback updateUser failed", fbErr);
-            setMessage({ type: "error", text: fbErr.message || "Fallback upload failed." });
+            setMessage({
+              type: "error",
+              text: fbErr.message || "Fallback upload failed.",
+            });
             throw fbErr;
           }
 
@@ -185,7 +232,9 @@ export default function ProfilePage() {
           setMessage({ type: "success", text: "Avatar updated successfully." });
           try {
             const updatedUser = fbData?.user ?? null;
-            window.dispatchEvent(new CustomEvent("userUpdated", { detail: updatedUser }));
+            window.dispatchEvent(
+              new CustomEvent("userUpdated", { detail: updatedUser })
+            );
           } catch {}
 
           setLoading(false);
@@ -195,27 +244,35 @@ export default function ProfilePage() {
       }
 
       // Get public URL for the uploaded file
-  const publicRes = supabase.storage.from("avatars").getPublicUrl(fileName);
-  const publicUrl = publicRes?.data?.publicUrl ?? null;
-  if (!publicUrl) throw new Error("Failed to get public URL for uploaded avatar");
+      const publicRes = supabase.storage.from("avatars").getPublicUrl(fileName);
+      const publicUrl = publicRes?.data?.publicUrl ?? null;
+      if (!publicUrl)
+        throw new Error("Failed to get public URL for uploaded avatar");
 
       // Update user metadata with the new public URL
-      const { data, error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
+      const { data, error: updateError } = await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl },
+      });
       if (updateError) throw updateError;
 
       // update local state
       setAvatarUrl(publicUrl);
-  setMessage({ type: "success", text: "Avatar updated successfully." });
+      setMessage({ type: "success", text: "Avatar updated successfully." });
 
       // notify other components (Navbar) that user metadata changed
       try {
         const updatedUser = data?.user ?? null;
-        window.dispatchEvent(new CustomEvent("userUpdated", { detail: updatedUser }));
+        window.dispatchEvent(
+          new CustomEvent("userUpdated", { detail: updatedUser })
+        );
       } catch (e) {
         // ignore
       }
     } catch (error: any) {
-      setMessage({ type: "error", text: error.message || "Failed to upload avatar." });
+      setMessage({
+        type: "error",
+        text: error.message || "Failed to upload avatar.",
+      });
     } finally {
       setLoading(false);
       setTempImageUrl(null);
@@ -229,7 +286,8 @@ export default function ProfilePage() {
 
     try {
       // Use server endpoint to update user metadata to avoid client fetch interception
-      const current = (await supabase.auth.getSession()).data.session?.user ?? null;
+      const current =
+        (await supabase.auth.getSession()).data.session?.user ?? null;
       if (!current) throw new Error("No authenticated user");
 
       // Try normal fetch first
@@ -238,7 +296,14 @@ export default function ProfilePage() {
         const res = await fetch("/api/user/update", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: current.id, metadata: { name, currency, avatar_url: current.user_metadata?.avatar_url } }),
+          body: JSON.stringify({
+            userId: current.id,
+            metadata: {
+              name,
+              currency,
+              avatar_url: current.user_metadata?.avatar_url,
+            },
+          }),
         });
         // If content-type is HTML (iframe fallback response) treat as failure for fetch path
         const ct = res.headers.get("content-type") || "";
@@ -251,7 +316,10 @@ export default function ProfilePage() {
           throw new Error("Non-JSON response, falling back to iframe method");
         }
       } catch (fetchErr) {
-        console.warn("Fetch update failed, attempting iframe fallback:", fetchErr);
+        console.warn(
+          "Fetch update failed, attempting iframe fallback:",
+          fetchErr
+        );
 
         // iframe fallback: build a hidden form and listen for postMessage from the server HTML response
         ok = await new Promise<boolean>((resolve) => {
@@ -278,26 +346,44 @@ export default function ProfilePage() {
           const input = document.createElement("input");
           input.type = "hidden";
           input.name = "payload";
-          input.value = JSON.stringify({ userId: current.id, metadata: { name, currency, avatar_url: current.user_metadata?.avatar_url } });
+          input.value = JSON.stringify({
+            userId: current.id,
+            metadata: {
+              name,
+              currency,
+              avatar_url: current.user_metadata?.avatar_url,
+            },
+          });
           form.appendChild(input);
           document.body.appendChild(form);
 
           form.submit();
           setTimeout(() => {
-            try { form.remove(); } catch (e) {}
+            try {
+              form.remove();
+            } catch (e) {}
           }, 2000);
         });
       }
 
-      if (!ok) throw new Error("Update failed (both fetch and iframe fallback)");
+      if (!ok)
+        throw new Error("Update failed (both fetch and iframe fallback)");
 
       // Notify client components and update local state
-  const refreshed = await supabase.auth.getUser();
-  const updatedUser = refreshed?.data?.user ?? { ...current, user_metadata: { ...(current.user_metadata ?? {}), name, currency } };
-  window.dispatchEvent(new CustomEvent("userUpdated", { detail: updatedUser }));
-  setMessage({ type: "success", text: "Profile updated successfully." });
+      const refreshed = await supabase.auth.getUser();
+      const updatedUser = refreshed?.data?.user ?? {
+        ...current,
+        user_metadata: { ...(current.user_metadata ?? {}), name, currency },
+      };
+      window.dispatchEvent(
+        new CustomEvent("userUpdated", { detail: updatedUser })
+      );
+      setMessage({ type: "success", text: "Profile updated successfully." });
     } catch (error: any) {
-      setMessage({ type: "error", text: error.message || "Failed to update profile." });
+      setMessage({
+        type: "error",
+        text: error.message || "Failed to update profile.",
+      });
     } finally {
       setLoading(false);
     }
@@ -313,14 +399,19 @@ export default function ProfilePage() {
     }
 
     if (newPassword.length < 8) {
-      setMessage({ type: "error", text: "Password must be at least 8 characters." });
+      setMessage({
+        type: "error",
+        text: "Password must be at least 8 characters.",
+      });
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
 
       if (error) throw error;
 
@@ -329,7 +420,10 @@ export default function ProfilePage() {
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
-      setMessage({ type: "error", text: error.message || "Failed to change password." });
+      setMessage({
+        type: "error",
+        text: error.message || "Failed to change password.",
+      });
     } finally {
       setLoading(false);
     }
@@ -338,144 +432,307 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-400">Loading...</p>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-3 border-white/20 border-t-white rounded-full animate-spin" />
+          <p className="text-gray-400">Loading profile...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen px-6 py-16">
+    <div className="min-h-screen px-6 py-12">
       <div className="max-w-4xl mx-auto space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Profile Settings</h1>
-          <p className="text-gray-400">Manage your account settings and preferences</p>
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-white">Profile Settings</h1>
+          <p className="text-gray-400 mt-1">
+            Manage your account settings and preferences
+          </p>
         </div>
 
-        {message && <Alert type={message.type}>{message.text}</Alert>}
+        {message && (
+          <Alert type={message.type === "error" ? "error" : "success"}>
+            {message.text}
+          </Alert>
+        )}
 
         {/* Avatar Section */}
-        <div className="bg-card/10 backdrop-blur-sm border border-white/8 rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Avatar</h2>
-          <div className="flex items-center gap-6">
-            <div className="relative">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-white">
+                Profile Picture
+              </h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Update your profile photo
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-8">
+            <div className="relative group">
               {avatarUrl ? (
-                <Image src={avatarUrl} alt="Avatar" width={96} height={96} className="rounded-full object-cover" />
+                <Image
+                  src={avatarUrl}
+                  alt="Avatar"
+                  width={120}
+                  height={120}
+                  className="rounded-full object-cover border-2 border-white/10"
+                />
               ) : (
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-600 to-violet-500 flex items-center justify-center text-white">
-                  <User size={40} />
+                <div className="w-[120px] h-[120px] rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center">
+                  <User size={48} className="text-white" />
                 </div>
               )}
-            </div>
-            <div>
-              <label className="cursor-pointer">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">
-                  <Upload size={16} />
-                  <span className="text-sm">Upload new avatar</span>
-                </div>
-                <input type="file" accept="image/*" onChange={handleAvatarSelect} className="hidden" disabled={loading} />
+              <label className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex items-center justify-center">
+                <Camera size={28} className="text-white" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarSelect}
+                  className="hidden"
+                  disabled={loading}
+                />
               </label>
-              <p className="text-xs text-gray-500 mt-2">JPG, PNG or GIF. Max 2MB.</p>
+            </div>
+
+            <div className="flex-1">
+              <label className="cursor-pointer">
+                <div className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 hover:border-white/20 transition-colors">
+                  <Upload size={18} className="text-gray-300" />
+                  <span className="text-sm font-medium text-white">
+                    Upload new photo
+                  </span>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarSelect}
+                  className="hidden"
+                  disabled={loading}
+                />
+              </label>
+              <p className="text-xs text-gray-500 mt-3">
+                JPG, PNG or GIF. Max 2MB.
+              </p>
+              <p className="text-xs text-gray-500">
+                Recommended size: 400x400px
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Profile Info */}
-        <div className="bg-card/10 backdrop-blur-sm border border-white/8 rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Profile Information</h2>
-          <form onSubmit={handleUpdateProfile} className="space-y-4">
+        {/* Profile Information */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-white">
+              Personal Information
+            </h2>
+            <p className="text-sm text-gray-400 mt-1">
+              Update your personal details
+            </p>
+          </div>
+
+          <form onSubmit={handleUpdateProfile} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-300">Name</label>
-              <Input placeholder="Your name" value={name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)} />
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <User size={14} className="inline mr-1" />
+                Display Name
+              </label>
+              <Input
+                placeholder="Enter your name"
+                value={name}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setName(e.target.value)
+                }
+                className="h-12 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50"
+              />
             </div>
+
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-300">Email</label>
-              <Input type="email" value={email} disabled className="opacity-50 cursor-not-allowed" />
-              <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Mail size={14} className="inline mr-1" />
+                Email Address
+              </label>
+              <Input
+                type="email"
+                value={email}
+                disabled
+                className="h-12 opacity-50 cursor-not-allowed"
+              />
+              <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                <Lock size={12} />
+                Email cannot be changed for security reasons
+              </p>
             </div>
+
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-300">Preferred currency</label>
-              <select className="w-full px-3 py-2 rounded bg-[#0b0f13] text-white" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                <option className="text-white" value="USD">USD ($)</option>
-                <option className="text-white" value="EUR">EUR (€)</option>
-                <option className="text-white" value="GBP">GBP (£)</option>
-                <option className="text-white" value="JPY">JPY (¥)</option>
-                <option className="text-white" value="AUD">AUD (A$)</option>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <DollarSign size={14} className="inline mr-1" />
+                Preferred Currency
+              </label>
+              <select
+                className="w-full px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 focus:outline-none transition-colors text-white cursor-pointer appearance-none"
+                style={{
+                  backgroundImage:
+                    "url(\"data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 12px center",
+                  paddingRight: "40px",
+                }}
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+              >
+                <option className="bg-[#0b0f13] text-white" value="USD">
+                  USD ($)
+                </option>
+                <option className="bg-[#0b0f13] text-white" value="EUR">
+                  EUR (€)
+                </option>
+                <option className="bg-[#0b0f13] text-white" value="GBP">
+                  GBP (£)
+                </option>
+                <option className="bg-[#0b0f13] text-white" value="JPY">
+                  JPY (¥)
+                </option>
+                <option className="bg-[#0b0f13] text-white" value="AUD">
+                  AUD (A$)
+                </option>
               </select>
             </div>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving…" : "Save changes"}
-            </Button>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-3 bg-white text-black hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
+              >
+                {loading ? "Saving changes..." : "Save changes"}
+              </button>
+            </div>
           </form>
         </div>
 
         {/* Change Password */}
-        <div className="bg-card/10 backdrop-blur-sm border border-white/8 rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Change Password</h2>
-          <form onSubmit={handleChangePassword} className="space-y-4">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-white">
+              Change Password
+            </h2>
+            <p className="text-sm text-gray-400 mt-1">
+              Update your password to keep your account secure
+            </p>
+          </div>
+
+          <form onSubmit={handleChangePassword} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-300">New password</label>
-              <Input type="password" placeholder="••••••••" value={newPassword} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)} required />
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Lock size={14} className="inline mr-1" />
+                New Password
+              </label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setNewPassword(e.target.value)
+                }
+                required
+                className="h-12 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50"
+              />
             </div>
+
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-300">Confirm new password</label>
-              <Input type="password" placeholder="••••••••" value={confirmPassword} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)} required />
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Lock size={14} className="inline mr-1" />
+                Confirm New Password
+              </label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setConfirmPassword(e.target.value)
+                }
+                required
+                className="h-12 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Password must be at least 8 characters long
+              </p>
             </div>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Changing…" : "Change password"}
-            </Button>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-3 bg-white text-black hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
+              >
+                {loading ? "Changing password..." : "Change password"}
+              </button>
+            </div>
           </form>
         </div>
 
-        {/* Sign Out */}
-        <div className="border-t border-white/8 pt-6">
-          <Button
-            variant="ghost"
+        {/* Danger Zone */}
+        <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-red-400">Danger Zone</h2>
+            <p className="text-sm text-gray-400 mt-1">
+              Sign out of your account
+            </p>
+          </div>
+
+          <button
             onClick={async () => {
               try {
-                // Try to sign out via Supabase client
                 await supabase.auth.signOut();
               } catch (e) {
-                console.warn('supabase.signOut failed', e);
+                console.warn("supabase.signOut failed", e);
               }
 
-              // Clear common Supabase keys from localStorage in case an extension prevented proper sign-out
               try {
                 const keys = Object.keys(localStorage || {});
                 for (const k of keys) {
-                  if (k.toLowerCase().includes('supabase') || k.startsWith('sb-') || k.includes('auth')) {
-                    try { localStorage.removeItem(k); } catch (e) {}
+                  if (
+                    k.toLowerCase().includes("supabase") ||
+                    k.startsWith("sb-") ||
+                    k.includes("auth")
+                  ) {
+                    try {
+                      localStorage.removeItem(k);
+                    } catch (e) {}
                   }
-                }
-              } catch (e) {
-                // ignore
-              }
-
-              // Attempt to clear known auth cookies by expiring them
-              try {
-                const cookies = document.cookie.split(';');
-                for (const c of cookies) {
-                  const eq = c.indexOf('=');
-                  const name = eq > -1 ? c.substr(0, eq).trim() : c.trim();
-                  if (!name) continue;
-                  // expire cookie
-                  document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/;';
                 }
               } catch (e) {}
 
-              // Notify app components that user is signed out
-              try { window.dispatchEvent(new CustomEvent('userUpdated', { detail: null })); } catch (e) {}
+              try {
+                const cookies = document.cookie.split(";");
+                for (const c of cookies) {
+                  const eq = c.indexOf("=");
+                  const name = eq > -1 ? c.substr(0, eq).trim() : c.trim();
+                  if (!name) continue;
+                  document.cookie =
+                    name + "=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/;";
+                }
+              } catch (e) {}
 
-              // Finally redirect to the homepage
-              window.location.href = '/';
+              try {
+                window.dispatchEvent(
+                  new CustomEvent("userUpdated", { detail: null })
+                );
+              } catch (e) {}
+
+              window.location.href = "/";
             }}
-            className="w-full text-red-400 border-red-400/20 hover:bg-red-500/10"
+            className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-500 rounded-xl text-white font-medium transition-colors"
           >
+            <LogOut size={18} />
             Sign out
-          </Button>
+          </button>
         </div>
       </div>
-
-      {/* Dev-only debug tools removed */}
 
       {/* Crop Modal */}
       {showCropModal && tempImageUrl && (
