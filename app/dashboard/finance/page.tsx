@@ -594,32 +594,32 @@ export default function FinancePage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold">Finance</h2>
-          <p className="text-gray-300">Resumo financeiro e relatórios — mantive o estilo do resto do site.</p>
+          <h1 className="text-3xl font-bold text-white">Finance</h1>
+          <p className="text-gray-400 mt-1">Financial summary and reports</p>
         </div>
         <select value={filterRange} onChange={(e) => setFilterRange(e.target.value as any)} className="rounded-lg bg-card/10 border border-white/6 px-3 py-2 text-sm">
-          <option value="day">Último dia</option>
-          <option value="week">Última semana</option>
-          <option value="month">Último mês</option>
-          <option value="all">Desde sempre</option>
+          <option value="day">Last day</option>
+          <option value="week">Last week</option>
+          <option value="month">Last month</option>
+          <option value="all">All time</option>
         </select>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-          <div className="text-sm text-gray-400">Total Investido</div>
+          <div className="text-sm text-gray-400">Total Invested</div>
           <div className="text-2xl font-bold text-white mt-2">{formatCurrency(metrics.totalInvested)}</div>
         </div>
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-          <div className="text-sm text-gray-400">Total de Vendas</div>
+          <div className="text-sm text-gray-400">Total Sales</div>
           <div className="text-2xl font-bold text-white mt-2">{formatCurrency(metrics.totalSales)}</div>
         </div>
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-          <div className="text-sm text-gray-400">Lucro Total</div>
+          <div className="text-sm text-gray-400">Total Profit</div>
           <div className="text-2xl font-bold text-white mt-2">{formatCurrency(metrics.totalProfit)}</div>
         </div>
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-          <div className="text-sm text-gray-400">Número de itens vendidos</div>
+          <div className="text-sm text-gray-400">Items Sold</div>
           <div className="text-2xl font-bold text-white mt-2">{metrics.itemsSold}</div>
         </div>
       </div>
@@ -680,7 +680,7 @@ export default function FinancePage() {
 
       {/* Export section */}
       <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mt-6">
-        <h3 className="text-lg font-semibold mb-4">Relatórios e Exportações</h3>
+        <h3 className="text-lg font-semibold mb-4">Reports and Exports</h3>
         <div className="flex items-center gap-3 flex-wrap">
           <Button variant="ghost" onClick={() => exportReportCSV(false)}>Export CSV</Button>
           <Button variant="ghost" onClick={() => exportReportCSV(true)}>Export Excel</Button>

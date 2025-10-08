@@ -572,9 +572,7 @@ export default function StockPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Stock Manager</h1>
-          <p className="text-gray-400 mt-1">
-            Manage your inventory and track products
-          </p>
+          <p className="text-gray-400 mt-1">Manage your inventory and track products</p>
         </div>
         <button
           onClick={openNew}
@@ -586,48 +584,39 @@ export default function StockPage() {
       </div>
       {/* Metrics cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="group relative overflow-hidden bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border border-indigo-500/20 rounded-2xl p-6 hover:border-indigo-500/40 transition-all duration-300">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all duration-300" />
-          <div className="relative flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                <Package size={16} />
-                <span>Items in Stock</span>
-              </div>
-              <div className="text-3xl font-bold text-white">
-                {metrics.itemsCount}
-              </div>
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+              <Package className="text-white" size={24} />
             </div>
+            <div className="text-xs text-gray-400">Items in Stock</div>
+          </div>
+          <div className="text-2xl font-bold text-white mb-1">
+            {metrics.itemsCount}
           </div>
         </div>
 
-        <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 rounded-2xl p-6 hover:border-emerald-500/40 transition-all duration-300">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all duration-300" />
-          <div className="relative flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                <DollarSign size={16} />
-                <span>Total Investment</span>
-              </div>
-              <div className="text-3xl font-bold text-white">
-                {formatCurrency(metrics.totalSpent, currency)}
-              </div>
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+              <DollarSign className="text-white" size={24} />
             </div>
+            <div className="text-xs text-gray-400">Total Investment</div>
+          </div>
+          <div className="text-2xl font-bold text-white mb-1">
+            {formatCurrency(metrics.totalSpent, currency)}
           </div>
         </div>
 
-        <div className="group relative overflow-hidden bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-transparent border border-violet-500/20 rounded-2xl p-6 hover:border-violet-500/40 transition-all duration-300">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full blur-3xl group-hover:bg-violet-500/20 transition-all duration-300" />
-          <div className="relative flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                <Users size={16} />
-                <span>Suppliers</span>
-              </div>
-              <div className="text-3xl font-bold text-white">
-                {metrics.suppliersCount}
-              </div>
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+              <Users className="text-white" size={24} />
             </div>
+            <div className="text-xs text-gray-400">Suppliers</div>
+          </div>
+          <div className="text-2xl font-bold text-white mb-1">
+            {metrics.suppliersCount}
           </div>
         </div>
       </div>
