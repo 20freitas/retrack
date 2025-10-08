@@ -74,6 +74,10 @@ export default function SalesPage() {
   const [query, setQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState<string>("");
 
+  // pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   // Stock products for selection
   const [stockProducts, setStockProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -146,6 +150,19 @@ export default function SalesPage() {
       )
       .filter((s) => (platformFilter ? s.platform === platformFilter : true));
   }, [sales, query, platformFilter]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedSales = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filtered.slice(startIndex, endIndex);
+  }, [filtered, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, platformFilter]);
 
   const metrics = useMemo(() => {
     const totalSales = sales.reduce((acc, s) => acc + (s.sale_price || 0), 0);
@@ -536,7 +553,7 @@ export default function SalesPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {filtered.map((sale) => (
+          {paginatedSales.map((sale) => (
             <div
               key={sale.id}
               className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all group"
@@ -646,6 +663,66 @@ export default function SalesPage() {
               </div>
             </div>
           ))}
+
+          {/* Pagination Controls */}
+          {filtered.length > 0 && (
+            <div className="mt-6 flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-400">Items per page:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  <option value={5} className="bg-gray-900">5</option>
+                  <option value={10} className="bg-gray-900">10</option>
+                  <option value={25} className="bg-gray-900">25</option>
+                  <option value={50} className="bg-gray-900">50</option>
+                  <option value={100} className="bg-gray-900">100</option>
+                </select>
+                <span className="text-sm text-gray-400">
+                  Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filtered.length)} - {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors text-sm"
+                >
+                  First
+                </button>
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors text-sm"
+                >
+                  Previous
+                </button>
+                <span className="px-4 py-2 bg-white/10 rounded-lg text-sm font-medium">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors text-sm"
+                >
+                  Next
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors text-sm"
+                >
+                  Last
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

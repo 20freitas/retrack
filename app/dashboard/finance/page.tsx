@@ -186,7 +186,27 @@ function AddVariableModal({
         <div className="space-y-3">
           <Input placeholder="Label" value={label} onChange={(e) => setLabel(e.target.value)} />
           <Input placeholder="Amount (0.00)" type="number" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} />
-          <Input placeholder="Color (optional)" value={color} onChange={(e) => setColor(e.target.value)} />
+          
+          <div>
+            <label className="text-sm text-gray-400 mb-2 block">Color (optional)</label>
+            <div className="grid grid-cols-8 gap-2">
+              {[
+                '#8B5CF6', '#A78BFA', '#C084FC', '#E879F9',
+                '#F472B6', '#FB923C', '#FBBF24', '#34D399',
+                '#10B981', '#14B8A6', '#06B6D4', '#0EA5E9',
+                '#3B82F6', '#6366F1', '#EC4899', '#F87171'
+              ].map((presetColor) => (
+                <button
+                  key={presetColor}
+                  type="button"
+                  onClick={() => setColor(presetColor)}
+                  className={`w-8 h-8 rounded-lg transition-all ${color === presetColor ? 'ring-2 ring-white ring-offset-2 ring-offset-[#071018] scale-110' : 'hover:scale-105'}`}
+                  style={{ backgroundColor: presetColor }}
+                  title={presetColor}
+                />
+              ))}
+            </div>
+          </div>
         </div>
         <div className="mt-4 flex gap-3">
           <Button onClick={() => { const v = parseFloat(value || "0") || 0; if (!label || v <= 0) return; onAdd({ label, value: v, color: color || undefined }); onClose(); }}>
@@ -263,7 +283,28 @@ function ManageVariablesModal({
                   <div className="space-y-3">
                     <Input placeholder="Label" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} />
                     <Input placeholder="Amount" type="number" step="0.01" value={editValue} onChange={(e) => setEditValue(e.target.value)} />
-                    <Input placeholder="Color (optional)" value={editColor} onChange={(e) => setEditColor(e.target.value)} />
+                    
+                    <div>
+                      <label className="text-sm text-gray-400 mb-2 block">Color (optional)</label>
+                      <div className="grid grid-cols-8 gap-2">
+                        {[
+                          '#8B5CF6', '#A78BFA', '#C084FC', '#E879F9',
+                          '#F472B6', '#FB923C', '#FBBF24', '#34D399',
+                          '#10B981', '#14B8A6', '#06B6D4', '#0EA5E9',
+                          '#3B82F6', '#6366F1', '#EC4899', '#F87171'
+                        ].map((presetColor) => (
+                          <button
+                            key={presetColor}
+                            type="button"
+                            onClick={() => setEditColor(presetColor)}
+                            className={`w-8 h-8 rounded-lg transition-all ${editColor === presetColor ? 'ring-2 ring-white ring-offset-2 ring-offset-[#071018] scale-110' : 'hover:scale-105'}`}
+                            style={{ backgroundColor: presetColor }}
+                            title={presetColor}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    
                     <div className="flex gap-2">
                       <Button onClick={saveEdit}>Save</Button>
                       <Button variant="ghost" onClick={cancelEdit}>Cancel</Button>
@@ -356,6 +397,24 @@ export default function FinancePage() {
       setSalesVars([]);
     }
   }, []);
+
+  // Save investVars to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("retrack_invest_vars", JSON.stringify(investVars));
+    } catch (e) {
+      console.error("Failed to save invest vars:", e);
+    }
+  }, [investVars]);
+
+  // Save salesVars to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("retrack_sales_vars", JSON.stringify(salesVars));
+    } catch (e) {
+      console.error("Failed to save sales vars:", e);
+    }
+  }, [salesVars]);
 
   useEffect(() => {
     async function fetchSales() {
@@ -597,11 +656,11 @@ export default function FinancePage() {
           <h1 className="text-3xl font-bold text-white">Finance</h1>
           <p className="text-gray-400 mt-1">Financial summary and reports</p>
         </div>
-        <select value={filterRange} onChange={(e) => setFilterRange(e.target.value as any)} className="rounded-lg bg-card/10 border border-white/6 px-3 py-2 text-sm">
-          <option value="day">Last day</option>
-          <option value="week">Last week</option>
-          <option value="month">Last month</option>
-          <option value="all">All time</option>
+        <select value={filterRange} onChange={(e) => setFilterRange(e.target.value as any)} className="rounded-lg bg-white/10 border border-white/20 px-4 py-2 text-sm text-white font-medium hover:bg-white/15 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-gray-500">
+          <option value="day" className="bg-gray-900 text-white">Last day</option>
+          <option value="week" className="bg-gray-900 text-white">Last week</option>
+          <option value="month" className="bg-gray-900 text-white">Last month</option>
+          <option value="all" className="bg-gray-900 text-white">All time</option>
         </select>
       </div>
 
