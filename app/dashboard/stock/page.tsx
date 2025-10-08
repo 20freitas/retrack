@@ -793,7 +793,7 @@ export default function StockPage() {
                       </div>
 
                       <div className="text-right flex-shrink-0">
-                        <div className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-emerald-300 bg-clip-text text-transparent">
+                        <div className="text-2xl font-bold text-white">
                           {formatCurrency(p.purchase_price, currency)}
                         </div>
                       </div>

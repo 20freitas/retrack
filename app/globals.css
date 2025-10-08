@@ -160,4 +160,18 @@
   select::-ms-expand {
     display: none;
   }
+
+  /* Logo carousel animation */
+  @keyframes scroll {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  .animate-scroll {
+    animation: scroll 3s linear infinite;
+  }
 }
