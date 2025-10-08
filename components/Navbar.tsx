@@ -62,7 +62,7 @@ export default function Navbar() {
                   { href: "/dashboard/stock", label: "Stock" },
                   { href: "/dashboard/sales", label: "Sales" },
                   { href: "/dashboard/finance", label: "Finance" },
-                  { href: "/dashboard/analytics", label: "Analytics" },
+                  { href: "/dashboard/settings", label: "Settings" },
                 ].map((t) => {
                   const active =
                     pathname === t.href || pathname?.startsWith(t.href + "/");

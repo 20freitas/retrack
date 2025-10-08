@@ -10,7 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: "/dashboard/stock", label: "Stock" },
     { href: "/dashboard/sales", label: "Sales" },
     { href: "/dashboard/finance", label: "Finance" },
-    { href: "/dashboard/analytics", label: "Analytics" },
+    { href: "/dashboard/settings", label: "Settings" },
   ];
 
   return (
