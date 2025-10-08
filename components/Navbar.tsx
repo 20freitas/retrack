@@ -41,7 +41,7 @@ export default function Navbar() {
   return (
     <nav className="sticky top-4 z-50 pointer-events-auto">
       <div className="mx-auto max-w-6xl px-6">
-        <div className="flex items-center justify-between rounded-xl bg-[#0b0f13]/85 border border-white/9 py-4 px-6 shadow-md">
+        <div className="relative flex items-center justify-between rounded-xl bg-[#0b0f13]/85 border border-white/9 py-4 px-6 shadow-md">
           <Link href="/" className="flex items-center">
             <Image
               src="/retrack (3).png"
@@ -53,36 +53,48 @@ export default function Navbar() {
             <span className="sr-only">retrack</span>
           </Link>
 
-          {/* Dashboard tabs shown when on the dashboard routes */}
-          {pathname?.startsWith("/dashboard") ? (
-            <div className="hidden md:flex items-center gap-3 ml-6">
-              {[
-                { href: "/dashboard/stock", label: "Stock" },
-                { href: "/dashboard/sales", label: "Sales" },
-                { href: "/dashboard/finance", label: "Finance" },
-                { href: "/dashboard/analytics", label: "Analytics" },
-              ].map((t) => {
-                const active =
-                  pathname === t.href || pathname?.startsWith(t.href + "/");
-                return (
-                  <Link
-                    key={t.href}
-                    href={t.href}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors duration-150 ${
-                      active
-                        ? "bg-white/8 text-white font-semibold"
-                        : "text-white/70 hover:text-white"
-                    }`}
-                  >
-                    {t.label}
-                  </Link>
-                );
-              })}
-            </div>
-          ) : null}
+          {/* Center section: Dashboard tabs when in dashboard, Dashboard button when logged in and outside dashboard */}
+          <div className="hidden md:flex items-center gap-3 absolute left-1/2 -translate-x-1/2">
+            {pathname?.startsWith("/dashboard") ? (
+              // Show dashboard tabs when inside dashboard
+              <>
+                {[
+                  { href: "/dashboard/stock", label: "Stock" },
+                  { href: "/dashboard/sales", label: "Sales" },
+                  { href: "/dashboard/finance", label: "Finance" },
+                  { href: "/dashboard/analytics", label: "Analytics" },
+                ].map((t) => {
+                  const active =
+                    pathname === t.href || pathname?.startsWith(t.href + "/");
+                  return (
+                    <Link
+                      key={t.href}
+                      href={t.href}
+                      className={`px-3 py-1 rounded-full text-sm transition-colors duration-150 ${
+                        active
+                          ? "bg-white/8 text-white font-semibold"
+                          : "text-white/70 hover:text-white"
+                      }`}
+                    >
+                      {t.label}
+                    </Link>
+                  );
+                })}
+              </>
+            ) : user ? (
+              // Show Dashboard button larger and centered when logged in and outside dashboard
+              <Link
+                href="/dashboard"
+                className="px-4 py-2 rounded-full text-base text-white/70 hover:text-white transition-colors duration-150"
+              >
+                Dashboard
+              </Link>
+            ) : null}
+          </div>
 
           <div className="flex items-center gap-4">
             {!user ? (
+              // Not logged in: show Register and Login
               <>
                 <Link
                   href="/register"
@@ -98,29 +110,22 @@ export default function Navbar() {
                 </Link>
               </>
             ) : (
-              <div className="flex items-center gap-4">
-                <Link
-                  href="/dashboard"
-                  className="text-base opacity-95 hover:opacity-100"
-                >
-                  Dashboard
-                </Link>
-                <Link href="/profile" className="block">
-                  {user?.user_metadata?.avatar_url ? (
-                    <Image
-                      src={user.user_metadata.avatar_url}
-                      alt="Avatar"
-                      width={40}
-                      height={40}
-                      className="rounded-full object-cover border border-white/10"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/15 transition-colors">
-                      <User size={18} />
-                    </div>
-                  )}
-                </Link>
-              </div>
+              // Logged in: only show profile avatar (Dashboard button is in center)
+              <Link href="/profile" className="block">
+                {user?.user_metadata?.avatar_url ? (
+                  <Image
+                    src={user.user_metadata.avatar_url}
+                    alt="Avatar"
+                    width={40}
+                    height={40}
+                    className="rounded-full object-cover border border-white/10"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/15 transition-colors">
+                    <User size={18} />
+                  </div>
+                )}
+              </Link>
             )}
           </div>
         </div>
