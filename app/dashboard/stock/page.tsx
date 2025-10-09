@@ -4,18 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import {
   Package,
-  DollarSign,
-  Users,
+  Plus,
   Search,
   Filter,
-  X,
-  Plus,
-  Edit2,
+  Edit,
   Trash2,
-  ShoppingBag,
-  Calendar,
+  X,
+  Upload,
   Tag,
-  Image as ImageIcon,
+  DollarSign,
+  Calendar,
+  Users,
+  ShoppingBag,
 } from "lucide-react";
 
 type Product = {
@@ -77,6 +77,92 @@ async function compressImage(
     };
     reader.readAsDataURL(file);
   });
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-8 pb-8 animate-pulse">
+      {/* Header Skeleton */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="h-8 w-48 bg-white/10 rounded-lg mb-2"></div>
+          <div className="h-4 w-64 bg-white/10 rounded-lg"></div>
+        </div>
+        <div className="h-12 w-40 bg-white/10 rounded-xl"></div>
+      </div>
+
+      {/* Stats Cards Skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-xl bg-white/10"></div>
+              <div className="h-3 w-24 bg-white/10 rounded"></div>
+            </div>
+            <div className="h-8 w-24 bg-white/10 rounded mb-1"></div>
+          </div>
+        ))}
+      </div>
+
+      {/* Search & Filters Skeleton */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex-1 min-w-[300px] h-12 bg-white/10 rounded-xl"></div>
+          <div className="w-32 h-12 bg-white/10 rounded-xl"></div>
+          <div className="w-32 h-12 bg-white/10 rounded-xl"></div>
+          <div className="w-40 h-12 bg-white/10 rounded-xl"></div>
+        </div>
+      </div>
+
+      {/* Products List Skeleton - Same structure as actual list */}
+      <div className="space-y-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-2xl p-6"
+          >
+            <div className="flex gap-6">
+              {/* Image Skeleton */}
+              <div className="w-32 h-32 rounded-xl bg-white/10 flex-shrink-0"></div>
+
+              {/* Content Skeleton */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="h-6 w-48 bg-white/10 rounded mb-2"></div>
+                    <div className="flex items-center gap-3">
+                      <div className="h-4 w-24 bg-white/10 rounded"></div>
+                      <div className="h-4 w-20 bg-white/10 rounded"></div>
+                      <div className="h-4 w-28 bg-white/10 rounded"></div>
+                    </div>
+                  </div>
+                  <div className="h-8 w-24 bg-white/10 rounded"></div>
+                </div>
+
+                <div className="h-10 bg-white/10 rounded mb-4"></div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-16 bg-white/10 rounded-lg"></div>
+                    <div className="h-7 w-20 bg-white/10 rounded-lg"></div>
+                    <div className="h-7 w-20 bg-white/10 rounded-lg"></div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-9 w-20 bg-white/10 rounded-lg"></div>
+                    <div className="h-9 w-20 bg-white/10 rounded-lg"></div>
+                    <div className="h-9 w-24 bg-white/10 rounded-lg"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function StockPage() {
@@ -220,33 +306,13 @@ export default function StockPage() {
       const res = await fetch(`/api/products/list${query}`);
       const json = await res.json().catch(() => ({}));
       if (!json?.ok) {
-        // If the server indicates missing userId or returns empty object, treat as empty list
-        const errMsg = json?.error ?? null;
-        if (
-          !errMsg ||
-          errMsg.toString().toLowerCase().includes("missing userid")
-        ) {
-          console.log("fetchProducts: no user or no products (empty)");
-          setFetchError(null);
-          setProducts([]);
-        } else {
-          console.error("fetchProducts server error:", json);
-          setFetchError(errMsg ?? "Server error");
-          setProducts([]);
-        }
+        console.error("fetchProducts error:", json);
+        setProducts([]);
       } else {
-        console.log(
-          "fetchProducts: received",
-          Array.isArray(json.data) ? json.data.length : 0,
-          "items",
-          json.data
-        );
-        setFetchError(null);
         setProducts(json.data ?? []);
       }
     } catch (e: any) {
       console.error("fetchProducts exception:", e);
-      setFetchError(e?.message ?? String(e));
       setProducts([]);
     }
     setLoading(false);
@@ -542,6 +608,10 @@ export default function StockPage() {
     text: string;
   } | null>(null);
 
+  if (loading) {
+    return <LoadingSkeleton />;
+  }
+
   return (
     <div className="space-y-8 pb-8">
       {/* Success/Error Message */}
@@ -589,7 +659,9 @@ export default function StockPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Stock Manager</h1>
-          <p className="text-gray-400 mt-1">Manage your inventory and track products</p>
+          <p className="text-gray-400 mt-1">
+            Manage your inventory and track products
+          </p>
         </div>
         <button
           onClick={openNew}
@@ -773,7 +845,7 @@ export default function StockPage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <ImageIcon className="text-gray-600" size={40} />
+                        <Upload className="text-gray-600" size={40} />
                       </div>
                     )}
                   </div>
@@ -858,7 +930,7 @@ export default function StockPage() {
                           onClick={() => startEdit(p)}
                           className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors text-sm font-medium border border-white/10 hover:border-white/20"
                         >
-                          <Edit2 size={14} />
+                          <Edit size={14} />
                           Edit
                         </button>
                         <button
@@ -899,14 +971,30 @@ export default function StockPage() {
                 }}
                 className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
-                <option value={5} className="bg-gray-900">5</option>
-                <option value={10} className="bg-gray-900">10</option>
-                <option value={25} className="bg-gray-900">25</option>
-                <option value={50} className="bg-gray-900">50</option>
-                <option value={100} className="bg-gray-900">100</option>
+                <option value={5} className="bg-gray-900">
+                  5
+                </option>
+                <option value={10} className="bg-gray-900">
+                  10
+                </option>
+                <option value={25} className="bg-gray-900">
+                  25
+                </option>
+                <option value={50} className="bg-gray-900">
+                  50
+                </option>
+                <option value={100} className="bg-gray-900">
+                  100
+                </option>
               </select>
               <span className="text-sm text-gray-400">
-                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filtered.length)} - {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length}
+                Showing{" "}
+                {Math.min(
+                  (currentPage - 1) * itemsPerPage + 1,
+                  filtered.length
+                )}{" "}
+                - {Math.min(currentPage * itemsPerPage, filtered.length)} of{" "}
+                {filtered.length}
               </span>
             </div>
 
@@ -956,7 +1044,7 @@ export default function StockPage() {
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
                     {editing ? (
-                      <Edit2 size={24} className="text-white" />
+                      <Edit size={24} className="text-white" />
                     ) : (
                       <Plus size={24} className="text-white" />
                     )}
@@ -1117,7 +1205,7 @@ export default function StockPage() {
               {/* Images Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  <ImageIcon size={14} className="inline mr-1" />
+                  <Upload size={14} className="inline mr-1" />
                   Product Images
                 </label>
                 <div className="relative">
@@ -1133,7 +1221,7 @@ export default function StockPage() {
                     htmlFor="image-upload"
                     className="flex items-center justify-center gap-3 w-full px-4 py-8 rounded-xl bg-white/5 border-2 border-dashed border-white/20 hover:border-blue-500/50 transition-colors cursor-pointer group"
                   >
-                    <ImageIcon
+                    <Upload
                       size={24}
                       className="text-gray-400 group-hover:text-blue-400 transition-colors"
                     />
@@ -1159,7 +1247,7 @@ export default function StockPage() {
                           alt=""
                         />
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
-                          <ImageIcon size={20} className="text-white" />
+                          <Upload size={20} className="text-white" />
                         </div>
                       </div>
                     ))}
@@ -1199,7 +1287,7 @@ export default function StockPage() {
                 >
                   {editing ? (
                     <>
-                      <Edit2 size={18} /> Update Product
+                      <Edit size={18} /> Update Product
                     </>
                   ) : (
                     <>
@@ -1294,7 +1382,7 @@ export default function StockPage() {
                     />
                   ) : (
                     <div className="w-16 h-16 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
-                      <ImageIcon className="text-gray-600" size={24} />
+                      <Upload className="text-gray-600" size={24} />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">

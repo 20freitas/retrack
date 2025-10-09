@@ -66,6 +66,75 @@ function formatPercent(n?: number) {
   return `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 }
 
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-8 pb-8 animate-pulse">
+      {/* Header Skeleton */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="h-8 w-48 bg-white/10 rounded-lg mb-2"></div>
+          <div className="h-4 w-64 bg-white/10 rounded-lg"></div>
+        </div>
+        <div className="h-12 w-40 bg-white/10 rounded-xl"></div>
+      </div>
+
+      {/* Metrics Cards Skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-xl bg-white/10"></div>
+              <div className="h-4 w-24 bg-white/10 rounded"></div>
+            </div>
+            <div className="h-8 w-32 bg-white/10 rounded mb-1"></div>
+            <div className="h-4 w-24 bg-white/10 rounded"></div>
+          </div>
+        ))}
+      </div>
+
+      {/* Search & Filters Skeleton */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <div className="flex items-center gap-4">
+          <div className="flex-1 h-12 bg-white/10 rounded-xl"></div>
+          <div className="w-40 h-12 bg-white/10 rounded-xl"></div>
+        </div>
+      </div>
+
+      {/* Sales List Skeleton */}
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6"
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-20 h-20 rounded-xl bg-white/10"></div>
+              <div className="flex-1">
+                <div className="h-6 w-48 bg-white/10 rounded mb-2"></div>
+                <div className="flex gap-2 mb-3">
+                  <div className="h-6 w-20 bg-white/10 rounded-lg"></div>
+                  <div className="h-6 w-32 bg-white/10 rounded-lg"></div>
+                </div>
+                <div className="grid grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((j) => (
+                    <div key={j}>
+                      <div className="h-3 w-16 bg-white/10 rounded mb-1"></div>
+                      <div className="h-5 w-20 bg-white/10 rounded"></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SalesPage() {
   const [loading, setLoading] = useState(true);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -381,6 +450,10 @@ export default function SalesPage() {
     }
   }
 
+  if (loading) {
+    return <LoadingSkeleton />;
+  }
+
   return (
     <div className="space-y-8 pb-8">
       {/* Success/Error Message */}
@@ -677,14 +750,30 @@ export default function SalesPage() {
                   }}
                   className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-gray-500"
                 >
-                  <option value={5} className="bg-gray-900">5</option>
-                  <option value={10} className="bg-gray-900">10</option>
-                  <option value={25} className="bg-gray-900">25</option>
-                  <option value={50} className="bg-gray-900">50</option>
-                  <option value={100} className="bg-gray-900">100</option>
+                  <option value={5} className="bg-gray-900">
+                    5
+                  </option>
+                  <option value={10} className="bg-gray-900">
+                    10
+                  </option>
+                  <option value={25} className="bg-gray-900">
+                    25
+                  </option>
+                  <option value={50} className="bg-gray-900">
+                    50
+                  </option>
+                  <option value={100} className="bg-gray-900">
+                    100
+                  </option>
                 </select>
                 <span className="text-sm text-gray-400">
-                  Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filtered.length)} - {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length}
+                  Showing{" "}
+                  {Math.min(
+                    (currentPage - 1) * itemsPerPage + 1,
+                    filtered.length
+                  )}{" "}
+                  - {Math.min(currentPage * itemsPerPage, filtered.length)} of{" "}
+                  {filtered.length}
                 </span>
               </div>
 
