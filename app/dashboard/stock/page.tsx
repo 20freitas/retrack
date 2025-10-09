@@ -17,6 +17,7 @@ import {
   Users,
   ShoppingBag,
 } from "lucide-react";
+import VintedImportModal from "../../../components/VintedImportModal";
 
 type Product = {
   id?: string;
@@ -182,6 +183,7 @@ export default function StockPage() {
 
   // modal & form state
   const [showModal, setShowModal] = useState(false);
+  const [showVintedModal, setShowVintedModal] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
@@ -663,13 +665,23 @@ export default function StockPage() {
             Manage your inventory and track products
           </p>
         </div>
-        <button
-          onClick={openNew}
-          className="flex items-center gap-2 px-6 py-3 bg-white text-black hover:bg-gray-200 rounded-xl font-medium transition-colors"
-        >
-          <Plus size={20} />
-          Add Product
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowVintedModal(true)}
+            className="flex items-center gap-2 px-4 h-[46px] bg-white hover:bg-gray-100 text-black rounded-xl font-medium transition-colors"
+            title="Import from Vinted"
+          >
+            <Plus size={20} className="text-black flex-shrink-0" />
+            <img src="/logos/vinted.png" alt="Vinted" className="h-10 w-auto object-contain" />
+          </button>
+          <button
+            onClick={openNew}
+            className="flex items-center gap-2 px-6 py-3 bg-white text-black hover:bg-gray-200 rounded-xl font-medium transition-colors"
+          >
+            <Plus size={20} />
+            Add Product
+          </button>
+        </div>
       </div>
       {/* Metrics cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -1502,6 +1514,20 @@ export default function StockPage() {
           </div>
         </div>
       )}
+
+      {/* Vinted Import Modal */}
+      <VintedImportModal
+        open={showVintedModal}
+        onClose={() => setShowVintedModal(false)}
+        onImported={() => {
+          // Refresh products list
+          setShowVintedModal(false);
+          if (currentUserId) {
+            fetchProducts(currentUserId);
+          }
+        }}
+        userId={currentUserId}
+      />
     </div>
   );
 }
