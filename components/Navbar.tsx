@@ -44,7 +44,7 @@ export default function Navbar() {
         <div className="relative flex items-center justify-between rounded-xl bg-[#0b0f13]/85 border border-white/9 py-4 px-6 shadow-md">
           <Link href="/" className="flex items-center">
             <Image
-              src="/retrack (3).png"
+              src="/retrack.png"
               alt="retrack"
               width={96}
               height={96}
