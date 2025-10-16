@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 /**
  * Create a Stripe Checkout session with affiliate commission transfer
@@ -21,6 +23,39 @@ export async function POST(request: NextRequest) {
     if (!success_url || !cancel_url) {
       return NextResponse.json(
         { error: 'success_url and cancel_url are required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if user is authenticated
+    const supabaseAuth = createRouteHandlerClient({ cookies });
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'You must be logged in to subscribe' },
+        { status: 401 }
+      );
+    }
+
+    // Check if user already has an active subscription
+    const { data: existingSubscription, error: subError } = await supabaseAuth
+      .from('user_subscriptions')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('status', ['active', 'trialing'])
+      .single();
+
+    if (existingSubscription && !subError) {
+      return NextResponse.json(
+        {
+          error: 'You already have an active subscription',
+          hasSubscription: true,
+          subscription: {
+            plan_type: existingSubscription.plan_type,
+            status: existingSubscription.status,
+          },
+        },
         { status: 400 }
       );
     }
@@ -66,8 +101,10 @@ export async function POST(request: NextRequest) {
       mode: 'subscription',
       success_url: success_url,
       cancel_url: cancel_url,
+      customer_email: user.email,
       metadata: {
         ref_code: ref_code || 'direct',
+        user_id: user.id, // Save user ID for webhook
       },
       allow_promotion_codes: true,
     };
@@ -81,6 +118,13 @@ export async function POST(request: NextRequest) {
           affiliate_account_id: affiliateInfo.stripe_account_id,
           affiliate_commission_rate: affiliateInfo.commission_rate.toString(),
           affiliate_amount: affiliateAmount.toString(), // Pre-calculated amount
+        },
+      };
+    } else {
+      // Even without affiliate, save user_id in subscription metadata
+      sessionParams.subscription_data = {
+        metadata: {
+          user_id: user.id,
         },
       };
     }

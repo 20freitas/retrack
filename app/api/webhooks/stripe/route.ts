@@ -61,12 +61,21 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.created': {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('📝 Subscription created:', subscription.id);
+        await handleSubscriptionCreated(subscription);
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        console.log('🔄 Subscription updated:', subscription.id);
+        await handleSubscriptionUpdated(subscription);
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('❌ Subscription cancelled:', subscription.id);
+        await handleSubscriptionDeleted(subscription);
         break;
       }
 
@@ -110,7 +119,23 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     subscription: session.subscription,
     payment_status: session.payment_status,
     metadata: session.metadata,
+    customer: session.customer,
+    customer_email: session.customer_details?.email,
   });
+  
+  // Save subscription to database if it's a subscription mode
+  if (session.mode === 'subscription' && session.subscription) {
+    const subscriptionId = typeof session.subscription === 'string' 
+      ? session.subscription 
+      : session.subscription.id;
+    
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      await saveSubscriptionToDatabase(subscription, session);
+    } catch (error) {
+      console.error('❌ Error saving subscription to database:', error);
+    }
+  }
   
   const refCode = session.metadata?.ref_code;
   
@@ -290,5 +315,143 @@ async function handleInvoicePaymentSucceeded(invoice: any) {
         console.error('Error message:', error.message);
       }
     }
+  }
+}
+
+// Helper function to save subscription to database
+async function saveSubscriptionToDatabase(subscription: Stripe.Subscription, session: Stripe.Checkout.Session) {
+  console.log('💾 Saving subscription to database:', subscription.id);
+  
+  // Get user ID from session metadata or customer email
+  const userId = session.metadata?.user_id;
+  const customerEmail = session.customer_details?.email;
+  
+  if (!userId) {
+    console.error('❌ No user_id in session metadata');
+    // Try to find user by email
+    if (customerEmail) {
+      console.log(`🔍 Trying to find user by email: ${customerEmail}`);
+      const { data: user, error } = await supabase
+        .from('auth.users')
+        .select('id')
+        .eq('email', customerEmail)
+        .single();
+      
+      if (error || !user) {
+        console.error('❌ Could not find user by email:', error);
+        return;
+      }
+    } else {
+      return;
+    }
+  }
+  
+  // Determine plan type from price
+  const priceId = subscription.items.data[0]?.price.id;
+  let planType = 'basic';
+  
+  if (priceId === process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID) {
+    planType = 'pro';
+  }
+  
+  const customerId = typeof subscription.customer === 'string' 
+    ? subscription.customer 
+    : subscription.customer.id;
+  
+  // Insert or update subscription
+  const { data, error} = await supabase
+    .from('user_subscriptions')
+    .upsert({
+      user_id: userId,
+      customer_id: customerId,
+      subscription_id: subscription.id,
+      plan_type: planType,
+      price_id: priceId,
+      status: subscription.status,
+      current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+      current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+      cancel_at_period_end: subscription.cancel_at_period_end,
+      canceled_at: subscription.canceled_at ? new Date((subscription.canceled_at as number) * 1000).toISOString() : null,
+      amount: subscription.items.data[0]?.price.unit_amount || 0,
+      currency: subscription.items.data[0]?.price.currency || 'eur',
+      metadata: subscription.metadata || {},
+    }, {
+      onConflict: 'subscription_id'
+    });
+  
+  if (error) {
+    console.error('❌ Error saving subscription:', error);
+  } else {
+    console.log('✅ Subscription saved to database');
+  }
+}
+
+// Handle subscription created event
+async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
+  console.log('📝 Saving new subscription:', subscription.id);
+  // Subscription will be saved via checkout.session.completed
+  // This is just for logging
+}
+
+// Handle subscription updated event
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+  console.log('🔄 Updating subscription:', subscription.id);
+  
+  const customerId = typeof subscription.customer === 'string' 
+    ? subscription.customer 
+    : subscription.customer.id;
+  
+  // Determine plan type from price
+  const priceId = subscription.items.data[0]?.price.id;
+  let planType = 'basic';
+  
+  if (priceId === process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID) {
+    planType = 'pro';
+  }
+  
+  // Update subscription in database
+  const { error } = await supabase
+    .from('user_subscriptions')
+    .update({
+      plan_type: planType,
+      price_id: priceId,
+      status: subscription.status,
+      current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+      current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+      cancel_at_period_end: subscription.cancel_at_period_end,
+      canceled_at: subscription.canceled_at ? new Date((subscription.canceled_at as number) * 1000).toISOString() : null,
+      amount: subscription.items.data[0]?.price.unit_amount || 0,
+      currency: subscription.items.data[0]?.price.currency || 'eur',
+      metadata: subscription.metadata || {},
+      updated_at: new Date().toISOString(),
+    })
+    .eq('subscription_id', subscription.id);
+  
+  if (error) {
+    console.error('❌ Error updating subscription:', error);
+  } else {
+    console.log('✅ Subscription updated in database');
+  }
+}
+
+// Handle subscription deleted event
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+  console.log('❌ Marking subscription as canceled:', subscription.id);
+  
+  // Update subscription status to canceled
+  const { error } = await supabase
+    .from('user_subscriptions')
+    .update({
+      status: 'canceled',
+      cancel_at_period_end: false,
+      canceled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('subscription_id', subscription.id);
+  
+  if (error) {
+    console.error('❌ Error marking subscription as canceled:', error);
+  } else {
+    console.log('✅ Subscription marked as canceled in database');
   }
 }
