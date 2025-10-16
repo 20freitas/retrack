@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
@@ -8,7 +8,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
-export default function CheckoutPage() {
+function CheckoutPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -222,5 +222,17 @@ function Feature({ text }: { text: string }) {
       <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
       <span className="text-gray-700">{text}</span>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    }>
+      <CheckoutPageContent />
+    </Suspense>
   );
 }

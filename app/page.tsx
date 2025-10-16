@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
@@ -90,7 +90,7 @@ const mockSales = [
   },
 ];
 
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const refCode = searchParams.get("ref");
 
@@ -1111,5 +1111,13 @@ export default function Home() {
       {/* Footer */}
       <Footer />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black"></div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
