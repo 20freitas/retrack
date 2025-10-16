@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
-import { supabaseAdmin } from '@/lib/supabaseClient';
+import { getSupabaseAdmin } from '@/lib/supabaseClient';
 import Stripe from 'stripe';
+
+// Get admin client for server-side operations
+const supabaseAdmin = getSupabaseAdmin();
 
 /**
  * Stripe webhook handler
