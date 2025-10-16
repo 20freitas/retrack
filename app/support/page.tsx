@@ -115,10 +115,10 @@ const contactMethods = [
     icon: Mail,
     title: "Email Support",
     description: "Get help via email",
-    detail: "support@retrack.com",
+    detail: "2025retrack@gmail.com",
     response: "Response within 24 hours",
     action: "Send Email",
-    href: "mailto:support@retrack.com",
+    href: "mailto:2025retrack@gmail.com",
   },
   {
     icon: MessageCircle,
@@ -363,7 +363,7 @@ export default function SupportPage() {
             </p>
             <div className="flex items-center justify-center gap-4">
               <Link
-                href="mailto:support@retrack.com"
+                href="mailto:2025retrack@gmail.com"
                 className="inline-flex items-center gap-2 px-8 py-4 bg-white text-black hover:bg-gray-200 rounded-xl font-semibold transition-colors"
               >
                 <Mail size={20} />

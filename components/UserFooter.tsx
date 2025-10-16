@@ -97,13 +97,13 @@ export default function UserFooter() {
                 </Link>
               </li>
               <li>
-                <a
-                  href="mailto:support@retrack.com"
+                <Link
+                  href="/contact"
                   className="text-gray-400 hover:text-white transition-colors text-sm flex items-center gap-2"
                 >
                   <Mail size={14} />
-                  Contact Support
-                </a>
+                  Contact Us
+                </Link>
               </li>
             </ul>
           </div>
@@ -132,7 +132,7 @@ export default function UserFooter() {
               </li>
               <li>
                 <Link
-                  href="/cookies"
+                  href="/privacy#cookies"
                   className="text-gray-400 hover:text-white transition-colors text-sm flex items-center gap-2"
                 >
                   <Cookie size={14} />
