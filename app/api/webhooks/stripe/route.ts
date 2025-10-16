@@ -6,6 +6,38 @@ import Stripe from 'stripe';
 // Get admin client for server-side operations
 const supabaseAdmin = getSupabaseAdmin();
 
+// Helper: safely convert various timestamp shapes to ISO string or return null
+function safeTimestampToISO(value: unknown): string | null {
+  try {
+    if (value == null) return null;
+
+    // Stripe often returns seconds as number
+    if (typeof value === 'number') {
+      const d = new Date(value * 1000);
+      if (isNaN(d.getTime())) return null;
+      return d.toISOString();
+    }
+
+    // Sometimes Stripe may return ISO strings or Date objects
+    if (typeof value === 'string') {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return null;
+      return d.toISOString();
+    }
+
+    if (value instanceof Date) {
+      if (isNaN(value.getTime())) return null;
+      return value.toISOString();
+    }
+
+    // Unknown shape
+    return null;
+  } catch (err) {
+    console.warn('safeTimestampToISO failed for value:', value, err);
+    return null;
+  }
+}
+
 /**
  * Stripe webhook handler
  * This endpoint receives events from Stripe about payment status
@@ -401,7 +433,21 @@ async function saveSubscriptionToDatabase(subscription: Stripe.Subscription, ses
     plan_type: planType,
     status: subscription.status,
   });
-  
+
+  // Log raw timestamp fields for debugging
+  console.log('🔎 Raw timestamps:', {
+    current_period_start: (subscription as any).current_period_start,
+    current_period_end: (subscription as any).current_period_end,
+    canceled_at: subscription.canceled_at,
+    created: subscription.created,
+    started_at: (subscription as any).start_date || null,
+  });
+
+  // Convert timestamps safely to ISO or null
+  const currentPeriodStartISO = safeTimestampToISO((subscription as any).current_period_start ?? (subscription as any).current_period_start);
+  const currentPeriodEndISO = safeTimestampToISO((subscription as any).current_period_end ?? (subscription as any).current_period_end);
+  const canceledAtISO = safeTimestampToISO((subscription as any).canceled_at ?? subscription.canceled_at);
+
   // Insert or update subscription
   const { data, error } = await supabaseAdmin
     .from('user_subscriptions')
@@ -412,10 +458,10 @@ async function saveSubscriptionToDatabase(subscription: Stripe.Subscription, ses
       plan_type: planType,
       price_id: priceId,
       status: subscription.status,
-      current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
-      current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+      current_period_start: currentPeriodStartISO,
+      current_period_end: currentPeriodEndISO,
       cancel_at_period_end: subscription.cancel_at_period_end,
-      canceled_at: subscription.canceled_at ? new Date((subscription.canceled_at as number) * 1000).toISOString() : null,
+      canceled_at: canceledAtISO,
       amount: subscription.items.data[0]?.price.unit_amount || 0,
       currency: subscription.items.data[0]?.price.currency || 'eur',
       metadata: subscription.metadata || {},
@@ -455,6 +501,17 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     planType = 'pro';
   }
   
+  // Log raw timestamps
+  console.log('🔎 Raw timestamps for update:', {
+    current_period_start: (subscription as any).current_period_start,
+    current_period_end: (subscription as any).current_period_end,
+    canceled_at: subscription.canceled_at,
+  });
+
+  const currentPeriodStartISO = safeTimestampToISO((subscription as any).current_period_start);
+  const currentPeriodEndISO = safeTimestampToISO((subscription as any).current_period_end);
+  const canceledAtISO = safeTimestampToISO((subscription as any).canceled_at ?? subscription.canceled_at);
+
   // Update subscription in database
   const { error } = await supabaseAdmin
     .from('user_subscriptions')
@@ -462,10 +519,10 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       plan_type: planType,
       price_id: priceId,
       status: subscription.status,
-      current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
-      current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+      current_period_start: currentPeriodStartISO,
+      current_period_end: currentPeriodEndISO,
       cancel_at_period_end: subscription.cancel_at_period_end,
-      canceled_at: subscription.canceled_at ? new Date((subscription.canceled_at as number) * 1000).toISOString() : null,
+      canceled_at: canceledAtISO,
       amount: subscription.items.data[0]?.price.unit_amount || 0,
       currency: subscription.items.data[0]?.price.currency || 'eur',
       metadata: subscription.metadata || {},
