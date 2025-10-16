@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { supabase } from '@/lib/supabaseClient';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 
 /**
  * Create a Stripe Checkout session with affiliate commission transfer
@@ -10,7 +8,7 @@ import { cookies } from 'next/headers';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { price_id, ref_code, success_url, cancel_url } = body;
+    const { price_id, ref_code, success_url, cancel_url, user_id } = body;
 
     // Validate required fields
     if (!price_id) {
@@ -27,37 +25,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user is authenticated
-    const supabaseAuth = createRouteHandlerClient({ cookies });
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    // Optional: Check if user already has an active subscription (if user_id provided)
+    if (user_id) {
+      const { data: existingSubscription } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', user_id)
+        .in('status', ['active', 'trialing'])
+        .maybeSingle();
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'You must be logged in to subscribe' },
-        { status: 401 }
-      );
-    }
-
-    // Check if user already has an active subscription
-    const { data: existingSubscription, error: subError } = await supabaseAuth
-      .from('user_subscriptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .in('status', ['active', 'trialing'])
-      .single();
-
-    if (existingSubscription && !subError) {
-      return NextResponse.json(
-        {
-          error: 'You already have an active subscription',
-          hasSubscription: true,
-          subscription: {
-            plan_type: existingSubscription.plan_type,
-            status: existingSubscription.status,
+      if (existingSubscription) {
+        return NextResponse.json(
+          {
+            error: 'You already have an active subscription',
+            hasSubscription: true,
+            subscription: {
+              plan_type: existingSubscription.plan_type,
+              status: existingSubscription.status,
+            },
           },
-        },
-        { status: 400 }
-      );
+          { status: 400 }
+        );
+      }
     }
 
     let affiliateInfo = null;
@@ -101,13 +90,16 @@ export async function POST(request: NextRequest) {
       mode: 'subscription',
       success_url: success_url,
       cancel_url: cancel_url,
-      customer_email: user.email,
       metadata: {
         ref_code: ref_code || 'direct',
-        user_id: user.id, // Save user ID for webhook
       },
       allow_promotion_codes: true,
     };
+
+    // Add user_id to metadata if provided
+    if (user_id) {
+      sessionParams.metadata.user_id = user_id;
+    }
 
     // For subscriptions with affiliates, we save metadata and process via webhook
     // because subscription payments happen over time
@@ -120,11 +112,16 @@ export async function POST(request: NextRequest) {
           affiliate_amount: affiliateAmount.toString(), // Pre-calculated amount
         },
       };
-    } else {
+      
+      // Add user_id to subscription metadata too
+      if (user_id) {
+        sessionParams.subscription_data.metadata.user_id = user_id;
+      }
+    } else if (user_id) {
       // Even without affiliate, save user_id in subscription metadata
       sessionParams.subscription_data = {
         metadata: {
-          user_id: user.id,
+          user_id: user_id,
         },
       };
     }

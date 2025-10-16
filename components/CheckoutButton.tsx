@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface CheckoutButtonProps {
   priceId: string;
@@ -19,6 +20,17 @@ export default function CheckoutButton({
   children,
 }: CheckoutButtonProps) {
   const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    // Get user ID if authenticated
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserId(user.id);
+      }
+    });
+  }, [supabase]);
 
   const handleCheckout = async () => {
     setLoading(true);
@@ -32,6 +44,7 @@ export default function CheckoutButton({
         body: JSON.stringify({
           price_id: priceId,
           ref_code: refCode || undefined,
+          user_id: userId || undefined, // Pass user_id if available
           success_url: `${window.location.origin}/dashboard?session_status=success&plan=${planName}`,
           cancel_url: `${window.location.origin}${refCode ? `?ref=${refCode}` : ''}`,
         }),
