@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   Package,
@@ -32,6 +33,7 @@ import {
   Plus,
 } from "lucide-react";
 import Footer from "@/components/Footer";
+import CheckoutButton from "@/components/CheckoutButton";
 
 // Mock data for demos
 const mockProducts = [
@@ -89,6 +91,21 @@ const mockSales = [
 ];
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const refCode = searchParams.get("ref");
+
+  // Price IDs - VOCÊ PRECISA SUBSTITUIR PELOS IDS REAIS DO STRIPE
+  const BASIC_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID || "price_basic_monthly";
+  const PRO_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "price_pro_monthly";
+
+  // Build URL with ref parameter if present
+  const getUrlWithRef = (path: string) => {
+    if (refCode) {
+      return `${path}?ref=${refCode}`;
+    }
+    return path;
+  };
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -113,13 +130,15 @@ export default function Home() {
               </p>
 
               <div className="flex items-center gap-4 pt-4">
-                <Link
-                  href="/register"
-                  className="group flex items-center gap-2 px-8 py-4 bg-white text-black hover:bg-gray-200 rounded-xl font-semibold transition-colors"
+                <CheckoutButton
+                  priceId={PRO_PRICE_ID}
+                  planName="pro"
+                  refCode={refCode}
+                  className="group flex items-center gap-2 px-8 py-4 bg-white text-black hover:bg-gray-200 rounded-xl font-semibold transition-colors disabled:opacity-50"
                 >
                   Get Started
                   <ArrowRight size={20} />
-                </Link>
+                </CheckoutButton>
                 <Link
                   href="/login"
                   className="px-8 py-4 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl font-semibold text-white transition-colors"
@@ -750,12 +769,14 @@ export default function Home() {
                   </li>
                 </ul>
 
-                <Link
-                  href="/register"
-                  className="w-full block text-center px-6 py-3 bg-white/10 border border-white/20 hover:bg-white/15 rounded-xl font-medium text-white transition-colors"
+                <CheckoutButton
+                  priceId={BASIC_PRICE_ID}
+                  planName="basic"
+                  refCode={refCode}
+                  className="w-full block text-center px-6 py-3 bg-white/10 border border-white/20 hover:bg-white/15 rounded-xl font-medium text-white transition-colors disabled:opacity-50"
                 >
                   Get Started
-                </Link>
+                </CheckoutButton>
               </div>
             </div>
 
@@ -817,12 +838,14 @@ export default function Home() {
                   </li>
                 </ul>
 
-                <Link
-                  href="/register"
-                  className="w-full block text-center px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium text-white transition-colors"
+                <CheckoutButton
+                  priceId={PRO_PRICE_ID}
+                  planName="pro"
+                  refCode={refCode}
+                  className="w-full block text-center px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium text-white transition-colors disabled:opacity-50"
                 >
                   Get Started
-                </Link>
+                </CheckoutButton>
               </div>
             </div>
           </div>
@@ -1073,13 +1096,15 @@ export default function Home() {
             Join thousands of resellers who are already using Retrack to manage
             their inventory and maximize profits.
           </p>
-          <Link
-            href="/register"
-            className="group inline-flex items-center gap-2 px-8 py-4 bg-white text-black hover:bg-gray-200 rounded-xl font-semibold transition-colors"
+          <CheckoutButton
+            priceId={PRO_PRICE_ID}
+            planName="pro"
+            refCode={refCode}
+            className="group inline-flex items-center gap-2 px-8 py-4 bg-white text-black hover:bg-gray-200 rounded-xl font-semibold transition-colors disabled:opacity-50"
           >
             Get Started Today
             <ArrowRight size={20} />
-          </Link>
+          </CheckoutButton>
         </div>
       </section>
 
