@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     console.log('3️⃣ Testing INSERT...');
     
     const testData = {
-      user_id: '00000000-0000-0000-0000-000000000000', // Fake UUID for testing
+      user_id: null, // NULL instead of fake UUID
       customer_id: `cus_test_${Date.now()}`,
       subscription_id: `sub_test_${Date.now()}`,
       plan_type: 'pro',
