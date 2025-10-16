@@ -128,16 +128,35 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   
   // Save subscription to database if it's a subscription mode
   if (session.mode === 'subscription' && session.subscription) {
+    console.log('🔔 This is a subscription checkout!');
+    
     const subscriptionId = typeof session.subscription === 'string' 
       ? session.subscription 
       : session.subscription.id;
     
+    console.log('🔍 Subscription ID:', subscriptionId);
+    
     try {
+      console.log('📡 Fetching subscription from Stripe...');
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      console.log('✅ Subscription retrieved:', subscription.id);
+      console.log('📦 Subscription metadata:', subscription.metadata);
+      
+      console.log('💾 Calling saveSubscriptionToDatabase...');
       await saveSubscriptionToDatabase(subscription, session);
+      console.log('✅ saveSubscriptionToDatabase completed!');
     } catch (error) {
-      console.error('❌ Error saving subscription to database:', error);
+      console.error('❌ Error in subscription save process:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
     }
+  } else {
+    console.log('⚠️ Not a subscription or no subscription ID:', {
+      mode: session.mode,
+      has_subscription: !!session.subscription,
+    });
   }
   
   const refCode = session.metadata?.ref_code;
