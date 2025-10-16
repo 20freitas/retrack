@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
-import { supabase } from '@/lib/supabaseClient';
+import { supabaseAdmin } from '@/lib/supabaseClient';
 import Stripe from 'stripe';
 
 /**
@@ -322,26 +322,41 @@ async function handleInvoicePaymentSucceeded(invoice: any) {
 async function saveSubscriptionToDatabase(subscription: Stripe.Subscription, session: Stripe.Checkout.Session) {
   console.log('💾 Saving subscription to database:', subscription.id);
   
-  // Get user ID from session metadata or customer email
-  const userId = session.metadata?.user_id;
+  // Get user ID from session metadata or subscription metadata
+  let userId = session.metadata?.user_id || subscription.metadata?.user_id;
   const customerEmail = session.customer_details?.email;
   
   if (!userId) {
-    console.error('❌ No user_id in session metadata');
-    // Try to find user by email
+    console.error('❌ No user_id in metadata');
+    
+    // Try to find user by email using Supabase admin client
     if (customerEmail) {
       console.log(`🔍 Trying to find user by email: ${customerEmail}`);
-      const { data: user, error } = await supabase
-        .from('auth.users')
-        .select('id')
-        .eq('email', customerEmail)
-        .single();
       
-      if (error || !user) {
-        console.error('❌ Could not find user by email:', error);
-        return;
+      try {
+        // Use admin client to query auth.users
+        const { data: userData, error: userError } = await supabaseAdmin.auth.admin.listUsers();
+        
+        if (userError) {
+          console.error('❌ Error listing users:', userError);
+        } else {
+          const foundUser = userData.users.find((u: any) => u.email === customerEmail);
+          if (foundUser) {
+            userId = foundUser.id;
+            console.log('✅ Found user by email:', userId);
+          } else {
+            console.log('⚠️ No user found with email:', customerEmail);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error finding user:', error);
       }
-    } else {
+    }
+    
+    // If still no user_id, we can't save - just log and return
+    if (!userId) {
+      console.log('⚠️ Skipping DB save - no user_id available');
+      console.log('💡 Subscription will only exist in Stripe, not in database');
       return;
     }
   }
@@ -358,8 +373,15 @@ async function saveSubscriptionToDatabase(subscription: Stripe.Subscription, ses
     ? subscription.customer 
     : subscription.customer.id;
   
+  console.log('📝 Attempting to save with:', {
+    user_id: userId,
+    subscription_id: subscription.id,
+    plan_type: planType,
+    status: subscription.status,
+  });
+  
   // Insert or update subscription
-  const { data, error} = await supabase
+  const { data, error } = await supabaseAdmin
     .from('user_subscriptions')
     .upsert({
       user_id: userId,
@@ -380,9 +402,11 @@ async function saveSubscriptionToDatabase(subscription: Stripe.Subscription, ses
     });
   
   if (error) {
-    console.error('❌ Error saving subscription:', error);
+    console.error('❌ Error saving subscription to database:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
   } else {
-    console.log('✅ Subscription saved to database');
+    console.log('✅ Subscription saved to database successfully!');
+    console.log('💾 Saved data:', data);
   }
 }
 
@@ -410,7 +434,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   }
   
   // Update subscription in database
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('user_subscriptions')
     .update({
       plan_type: planType,
@@ -439,7 +463,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   console.log('❌ Marking subscription as canceled:', subscription.id);
   
   // Update subscription status to canceled
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('user_subscriptions')
     .update({
       status: 'canceled',
