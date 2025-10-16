@@ -104,16 +104,66 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  console.log('Checkout completed:', session.id);
+  console.log('✅ Checkout completed:', session.id);
+  console.log('📋 Session details:', {
+    mode: session.mode,
+    subscription: session.subscription,
+    payment_status: session.payment_status,
+    metadata: session.metadata,
+  });
   
   const refCode = session.metadata?.ref_code;
   
   if (refCode && refCode !== 'direct') {
-    console.log(`Sale via affiliate: ${refCode}`);
+    console.log(`💼 Sale via affiliate: ${refCode}`);
     
-    // You could log this to a sales/commission tracking table
-    // For now, we just log it - the transfer to the affiliate
-    // is automatically handled by Stripe via transfer_data
+    // For subscriptions, the first payment might already be processed
+    // We need to check if this is a subscription and process the initial transfer
+    if (session.mode === 'subscription' && session.subscription) {
+      const subscriptionId = typeof session.subscription === 'string' 
+        ? session.subscription 
+        : session.subscription.id;
+      
+      console.log(`🔍 Fetching subscription for initial transfer: ${subscriptionId}`);
+      
+      try {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        console.log('📦 Subscription metadata:', subscription.metadata);
+        
+        const metadata = subscription.metadata || {};
+        const affiliateAccountId = metadata.affiliate_account_id;
+        const commissionRate = metadata.affiliate_commission_rate;
+        
+        if (affiliateAccountId && commissionRate) {
+          // Get the amount from the subscription
+          const amount = subscription.items.data[0]?.price.unit_amount || 0;
+          const commissionAmount = Math.floor(amount * (parseFloat(commissionRate) / 100));
+          
+          console.log(`💰 Creating initial transfer: $${commissionAmount / 100} (${commissionRate}%)`);
+          
+          // Create the initial transfer
+          const transfer = await stripe.transfers.create({
+            amount: commissionAmount,
+            currency: subscription.items.data[0]?.price.currency || 'usd',
+            destination: affiliateAccountId,
+            description: `Initial commission ${commissionRate}% for ${refCode} - Subscription ${subscriptionId}`,
+            metadata: {
+              ref_code: refCode,
+              subscription_id: subscriptionId,
+              commission_rate: commissionRate,
+              payment_type: 'initial',
+            },
+          });
+          
+          console.log(`✅ Initial transfer created: ${transfer.id} - $${commissionAmount / 100} sent to ${affiliateAccountId}`);
+        }
+      } catch (error) {
+        console.error('❌ Error processing initial transfer:', error);
+        if (error instanceof Error) {
+          console.error('Error details:', error.message);
+        }
+      }
+    }
   }
 }
 
@@ -147,7 +197,14 @@ async function handleInvoicePaymentSucceeded(invoice: any) {
   // For subscriptions, we need to get the subscription to access metadata
   const subscriptionId = invoice.subscription;
   if (!subscriptionId) {
-    console.log('⚠️ No subscription ID found in invoice');
+    console.log('⚠️ No subscription ID found in invoice - this might be a one-time payment');
+    return;
+  }
+  
+  // Skip the first invoice if billing_reason is 'subscription_create' 
+  // because we already handled it in checkout.session.completed
+  if (invoice.billing_reason === 'subscription_create') {
+    console.log('ℹ️ Skipping initial subscription invoice (already handled in checkout.session.completed)');
     return;
   }
   
@@ -170,31 +227,32 @@ async function handleInvoicePaymentSucceeded(invoice: any) {
       });
       
       if (refCode && affiliateAccountId && commissionRate) {
-        console.log(`💰 Subscription payment with affiliate ${refCode}, commission rate: ${commissionRate}%`);
+        console.log(`💰 Recurring payment for affiliate ${refCode}, commission rate: ${commissionRate}%`);
         
         // Calculate commission based on the actual amount paid
         const amountPaid = invoice.amount_paid; // in cents
         const commissionAmount = Math.floor(amountPaid * (parseFloat(commissionRate) / 100));
         
-        console.log(`📊 Invoice amount: $${amountPaid / 100}, Commission: $${commissionAmount / 100} (${commissionRate}%)`);
+        console.log(`📊 Invoice amount: ${invoice.currency} ${amountPaid / 100}, Commission: ${invoice.currency} ${commissionAmount / 100} (${commissionRate}%)`);
         
         try {
-          // Create transfer to affiliate (70% goes to them)
-          console.log(`🚀 Creating transfer to ${affiliateAccountId}...`);
+          // Create transfer to affiliate for recurring payment
+          console.log(`🚀 Creating recurring transfer to ${affiliateAccountId}...`);
           const transfer = await stripe.transfers.create({
             amount: commissionAmount,
-            currency: invoice.currency || 'usd',
+            currency: invoice.currency || 'eur',
             destination: affiliateAccountId,
-            description: `Commission ${commissionRate}% for ${refCode} - Invoice ${invoice.id}`,
+            description: `Recurring commission ${commissionRate}% for ${refCode} - Invoice ${invoice.id}`,
             metadata: {
               ref_code: refCode,
               invoice_id: invoice.id,
               subscription_id: subscriptionId,
               commission_rate: commissionRate,
+              payment_type: 'recurring',
             },
           });
           
-          console.log(`✅ Transfer created: ${transfer.id} - $${commissionAmount / 100} sent to ${affiliateAccountId}`);
+          console.log(`✅ Recurring transfer created: ${transfer.id} - ${invoice.currency} ${commissionAmount / 100} sent to ${affiliateAccountId}`);
         } catch (transferError) {
           console.error('❌ Error creating transfer:', transferError);
           // Log more error details
