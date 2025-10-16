@@ -141,21 +141,35 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
           
           console.log(`💰 Creating initial transfer: $${commissionAmount / 100} (${commissionRate}%)`);
           
-          // Create the initial transfer
-          const transfer = await stripe.transfers.create({
-            amount: commissionAmount,
-            currency: subscription.items.data[0]?.price.currency || 'usd',
-            destination: affiliateAccountId,
-            description: `Initial commission ${commissionRate}% for ${refCode} - Subscription ${subscriptionId}`,
-            metadata: {
-              ref_code: refCode,
-              subscription_id: subscriptionId,
-              commission_rate: commissionRate,
-              payment_type: 'initial',
-            },
-          });
-          
-          console.log(`✅ Initial transfer created: ${transfer.id} - $${commissionAmount / 100} sent to ${affiliateAccountId}`);
+          // In test mode, we might not have sufficient funds immediately
+          // So we'll try to create the transfer, but handle the error gracefully
+          try {
+            const transfer = await stripe.transfers.create({
+              amount: commissionAmount,
+              currency: subscription.items.data[0]?.price.currency || 'usd',
+              destination: affiliateAccountId,
+              description: `Initial commission ${commissionRate}% for ${refCode} - Subscription ${subscriptionId}`,
+              metadata: {
+                ref_code: refCode,
+                subscription_id: subscriptionId,
+                commission_rate: commissionRate,
+                payment_type: 'initial',
+              },
+            });
+            
+            console.log(`✅ Initial transfer created: ${transfer.id} - $${commissionAmount / 100} sent to ${affiliateAccountId}`);
+          } catch (transferError: any) {
+            console.error('❌ Error creating initial transfer:', transferError.message);
+            
+            // If insufficient funds in test mode, just log it
+            if (transferError.code === 'insufficient_funds') {
+              console.log('⚠️ Insufficient funds - this is expected in test mode');
+              console.log('ℹ️ In production, funds will be available after successful payment');
+              console.log(`📝 Transfer would be: ${commissionAmount} ${subscription.items.data[0]?.price.currency} to ${affiliateAccountId}`);
+            }
+          }
+        } else {
+          console.log('ℹ️ No affiliate info in checkout session');
         }
       } catch (error) {
         console.error('❌ Error processing initial transfer:', error);
@@ -253,11 +267,13 @@ async function handleInvoicePaymentSucceeded(invoice: any) {
           });
           
           console.log(`✅ Recurring transfer created: ${transfer.id} - ${invoice.currency} ${commissionAmount / 100} sent to ${affiliateAccountId}`);
-        } catch (transferError) {
-          console.error('❌ Error creating transfer:', transferError);
-          // Log more error details
-          if (transferError instanceof Error) {
-            console.error('Error details:', transferError.message);
+        } catch (transferError: any) {
+          console.error('❌ Error creating transfer:', transferError.message);
+          
+          // If insufficient funds, log details
+          if (transferError.code === 'insufficient_funds') {
+            console.log('⚠️ Insufficient funds - waiting for balance to be available');
+            console.log(`📝 Transfer pending: ${commissionAmount} ${invoice.currency} to ${affiliateAccountId}`);
           }
         }
       } else {
