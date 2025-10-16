@@ -143,33 +143,42 @@ async function handleInvoicePaymentSucceeded(invoice: any) {
       const metadata = subscription.metadata || {};
       const refCode = metadata.affiliate_ref_code;
       const affiliateAccountId = metadata.affiliate_account_id;
-      const commissionRate = metadata.commission_rate;
+      const commissionRate = metadata.affiliate_commission_rate;
       
       if (refCode && affiliateAccountId && commissionRate) {
-        console.log(`Subscription payment with affiliate ${refCode}, commission rate: ${commissionRate}%`);
+        console.log(`💰 Subscription payment with affiliate ${refCode}, commission rate: ${commissionRate}%`);
         
-        // Calculate commission
-        const amount = invoice.amount_paid; // in cents
-        const commissionAmount = Math.round(amount * (parseFloat(commissionRate) / 100));
+        // Calculate commission based on the actual amount paid
+        const amountPaid = invoice.amount_paid; // in cents
+        const commissionAmount = Math.floor(amountPaid * (parseFloat(commissionRate) / 100));
+        
+        console.log(`📊 Invoice amount: $${amountPaid / 100}, Commission: $${commissionAmount / 100} (${commissionRate}%)`);
         
         try {
-          // Create transfer to affiliate
+          // Create transfer to affiliate (70% goes to them)
           const transfer = await stripe.transfers.create({
             amount: commissionAmount,
-            currency: invoice.currency,
+            currency: invoice.currency || 'usd',
             destination: affiliateAccountId,
-            description: `Commission for ${refCode} - Invoice ${invoice.id}`,
+            description: `Commission ${commissionRate}% for ${refCode} - Invoice ${invoice.id}`,
             metadata: {
               ref_code: refCode,
               invoice_id: invoice.id,
               subscription_id: subscriptionId,
+              commission_rate: commissionRate,
             },
           });
           
-          console.log(`Transfer created: ${transfer.id} - Amount: ${commissionAmount} to ${affiliateAccountId}`);
-        } catch (error) {
-          console.error('Error creating transfer:', error);
+          console.log(`✅ Transfer created: ${transfer.id} - $${commissionAmount / 100} sent to ${affiliateAccountId}`);
+        } catch (transferError) {
+          console.error('❌ Error creating transfer:', transferError);
+          // Log more error details
+          if (transferError instanceof Error) {
+            console.error('Error details:', transferError.message);
+          }
         }
+      } else {
+        console.log('ℹ️ No affiliate info found for this subscription payment');
       }
     } catch (error) {
       console.error('Error retrieving subscription:', error);

@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let transferData = undefined;
     let affiliateInfo = null;
 
     // If ref_code is provided, get affiliate info
@@ -47,6 +46,14 @@ export async function POST(request: NextRequest) {
       affiliateInfo = affiliate;
     }
 
+    // Get price details from Stripe to know the amount
+    const priceDetails = await stripe.prices.retrieve(price_id);
+    const amount = priceDetails.unit_amount || 0; // in cents
+    
+    // Calculate commission (70% goes to affiliate)
+    const commissionRate = affiliateInfo ? (affiliateInfo.commission_rate / 100) : 0;
+    const affiliateAmount = Math.floor(amount * commissionRate); // 70% in cents
+
     // Create Stripe Checkout session
     const sessionParams: any = {
       payment_method_types: ['card'],
@@ -65,12 +72,17 @@ export async function POST(request: NextRequest) {
       allow_promotion_codes: true,
     };
 
-    // For subscriptions with affiliates, we'll handle commission via webhook
+    // For subscriptions with affiliates, we save metadata and process via webhook
     // because subscription payments happen over time
     if (affiliateInfo) {
-      sessionParams.metadata.affiliate_ref_code = ref_code;
-      sessionParams.metadata.affiliate_account_id = affiliateInfo.stripe_account_id;
-      sessionParams.metadata.commission_rate = affiliateInfo.commission_rate.toString();
+      sessionParams.subscription_data = {
+        metadata: {
+          affiliate_ref_code: ref_code,
+          affiliate_account_id: affiliateInfo.stripe_account_id,
+          affiliate_commission_rate: affiliateInfo.commission_rate.toString(),
+          affiliate_amount: affiliateAmount.toString(), // Pre-calculated amount
+        },
+      };
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
@@ -81,6 +93,7 @@ export async function POST(request: NextRequest) {
       affiliate: affiliateInfo ? {
         ref_code: affiliateInfo.ref_code,
         commission_rate: affiliateInfo.commission_rate,
+        affiliate_amount_cents: affiliateAmount,
       } : null,
     }, { status: 200 });
 
