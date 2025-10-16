@@ -41,28 +41,32 @@ export async function POST(request: NextRequest) {
 
   // Handle the event
   try {
+    console.log(`🔔 Webhook received: ${event.type}`);
+    
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
+        console.log(`✅ Checkout completed: ${session.id}`);
         await handleCheckoutCompleted(session);
         break;
       }
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice;
+        console.log(`💵 Invoice payment succeeded: ${invoice.id}`);
         await handleInvoicePaymentSucceeded(invoice);
         break;
       }
 
       case 'customer.subscription.created': {
         const subscription = event.data.object as Stripe.Subscription;
-        console.log('Subscription created:', subscription.id);
+        console.log('📝 Subscription created:', subscription.id);
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
-        console.log('Subscription cancelled:', subscription.id);
+        console.log('❌ Subscription cancelled:', subscription.id);
         break;
       }
 
@@ -133,17 +137,37 @@ async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
 }
 
 async function handleInvoicePaymentSucceeded(invoice: any) {
-  console.log('Invoice payment succeeded:', invoice.id);
+  console.log('💰 Invoice payment succeeded:', invoice.id);
+  console.log('📋 Invoice details:', {
+    amount_paid: invoice.amount_paid,
+    currency: invoice.currency,
+    subscription: invoice.subscription,
+  });
   
   // For subscriptions, we need to get the subscription to access metadata
   const subscriptionId = invoice.subscription;
-  if (subscriptionId && typeof subscriptionId === 'string') {
+  if (!subscriptionId) {
+    console.log('⚠️ No subscription ID found in invoice');
+    return;
+  }
+  
+  if (typeof subscriptionId === 'string') {
     try {
+      console.log(`🔍 Fetching subscription: ${subscriptionId}`);
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      console.log('📦 Subscription metadata:', subscription.metadata);
+      
       const metadata = subscription.metadata || {};
       const refCode = metadata.affiliate_ref_code;
       const affiliateAccountId = metadata.affiliate_account_id;
       const commissionRate = metadata.affiliate_commission_rate;
+      
+      console.log('🔎 Extracted values:', {
+        refCode,
+        affiliateAccountId,
+        commissionRate,
+      });
       
       if (refCode && affiliateAccountId && commissionRate) {
         console.log(`💰 Subscription payment with affiliate ${refCode}, commission rate: ${commissionRate}%`);
@@ -156,6 +180,7 @@ async function handleInvoicePaymentSucceeded(invoice: any) {
         
         try {
           // Create transfer to affiliate (70% goes to them)
+          console.log(`🚀 Creating transfer to ${affiliateAccountId}...`);
           const transfer = await stripe.transfers.create({
             amount: commissionAmount,
             currency: invoice.currency || 'usd',
@@ -179,9 +204,17 @@ async function handleInvoicePaymentSucceeded(invoice: any) {
         }
       } else {
         console.log('ℹ️ No affiliate info found for this subscription payment');
+        console.log('Missing fields:', {
+          has_refCode: !!refCode,
+          has_affiliateAccountId: !!affiliateAccountId,
+          has_commissionRate: !!commissionRate,
+        });
       }
     } catch (error) {
-      console.error('Error retrieving subscription:', error);
+      console.error('❌ Error retrieving subscription:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
     }
   }
 }
