@@ -345,11 +345,11 @@ async function saveSubscriptionToDatabase(subscription: Stripe.Subscription, ses
   console.log('💾 Saving subscription to database:', subscription.id);
   
   // Get user ID from session metadata or subscription metadata
-  let userId = session.metadata?.user_id || subscription.metadata?.user_id;
+  let userId: string | null = session.metadata?.user_id || subscription.metadata?.user_id || null;
   const customerEmail = session.customer_details?.email;
   
   if (!userId) {
-    console.error('❌ No user_id in metadata');
+    console.log('⚠️ No user_id in metadata');
     
     // Try to find user by email using Supabase admin client
     if (customerEmail) {
@@ -368,6 +368,7 @@ async function saveSubscriptionToDatabase(subscription: Stripe.Subscription, ses
             console.log('✅ Found user by email:', userId);
           } else {
             console.log('⚠️ No user found with email:', customerEmail);
+            console.log('💡 Will save subscription without user_id (can be linked later)');
           }
         }
       } catch (error) {
@@ -375,11 +376,10 @@ async function saveSubscriptionToDatabase(subscription: Stripe.Subscription, ses
       }
     }
     
-    // If still no user_id, we can't save - just log and return
+    // Continue even without user_id - save as guest subscription
     if (!userId) {
-      console.log('⚠️ Skipping DB save - no user_id available');
-      console.log('💡 Subscription will only exist in Stripe, not in database');
-      return;
+      console.log('📝 Saving as guest subscription (user_id = NULL)');
+      console.log('💡 This subscription can be linked to a user later via customer_email');
     }
   }
   
